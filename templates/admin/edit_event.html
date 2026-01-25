@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Event - AICC Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="admin-dashboard">
+    <nav class="admin-nav">
+        <div class="nav-brand">
+            <i class="fas fa-shield-alt"></i>
+            AICC Admin Panel
+        </div>
+        <div class="nav-actions">
+            <button id="theme-toggle" class="btn-theme">
+                <i class="fas fa-sun"></i>
+            </button>
+            <a href="{{ url_for('admin_events') }}" class="btn-back">
+                <i class="fas fa-arrow-left"></i>
+                Back to Events
+            </a>
+            <a href="{{ url_for('admin_logout') }}" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </nav>
+    
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>Edit Event</h1>
+            <p>Update event details and information</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="form-card">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name">Event Name</label>
+                        <input type="text" id="name" name="name" value="{{ event.name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" name="status" required>
+                            <option value="upcoming" {% if event.status == 'upcoming' %}selected{% endif %}>Upcoming</option>
+                            <option value="completed" {% if event.status == 'completed' %}selected{% endif %}>Completed</option>
+                            <option value="cancelled" {% if event.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" value="{{ event.date }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="time">Time</label>
+                        <input type="text" id="time" name="time" value="{{ event.time }}" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" name="location" value="{{ event.location }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="3" required>{{ event.description }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="how">How It Works</label>
+                    <textarea id="how" name="how" rows="3">{{ event.how }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="rules">Rules (one per line)</label>
+                    <textarea id="rules" name="rules" rows="4">{{ event.rules | join('\n') }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="event_image">Event Image</label>
+                    <input type="file" id="event_image" name="event_image" accept="image/*">
+                    {% if event.image %}
+                    <div class="current-image">
+                        <p>Current image:</p>
+                        <img src="{{ event.image | cache_bust }}" alt="{{ event.name }}" style="max-width: 200px; border-radius: 8px; margin-top: 10px;">
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="register_link">Registration Link</label>
+                    <input type="url" id="register_link" name="register_link" value="{{ event.register_link }}">
+                </div>
+                
+                <div class="form-group">
+                    <h3 style="color: var(--admin-primary); margin-top: 20px; margin-bottom: 10px;">
+                        <i class="fas fa-clock"></i> Registration Deadline (Optional)
+                    </h3>
+                    <small style="color: var(--admin-gray-light); display: block; margin-bottom: 15px;">
+                        Leave empty if no registration deadline
+                    </small>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="deadline_date">Deadline Date</label>
+                        <input type="date" id="deadline_date" name="deadline_date" value="{{ event.registration_deadline.date if event.registration_deadline else '' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="deadline_message">Deadline Message</label>
+                        <input type="text" id="deadline_message" name="deadline_message" value="{{ event.registration_deadline.message if event.registration_deadline else '' }}" placeholder="Register now! Limited spots available.">
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        Update Event
+                    </button>
+                    <a href="{{ url_for('admin_events') }}" class="btn-secondary">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+</body>
+</html>

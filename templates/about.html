@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}About - AI Coding Club{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>About <span class="gradient-text">AICC</span></h1>
+        <p>{{ club_info.tagline }}</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="about-detailed">
+            <div class="about-content-detailed">
+                <h2>{{ club_info.name }}</h2>
+                <p class="lead">{{ club_info.description }}</p>
+                
+                <div class="mission-vision">
+                    <div class="mission">
+                        <h3><i class="fas fa-bullseye"></i> Our Mission</h3>
+                        <p>To empower students with cutting-edge AI and coding skills, fostering innovation and preparing them for the challenges of tomorrow's tech landscape.</p>
+                    </div>
+                    <div class="vision">
+                        <h3><i class="fas fa-eye"></i> Our Vision</h3>
+                        <p>To be a leading student-driven community that shapes the next generation of AI innovators and software developers.</p>
+                    </div>
+                </div>
+
+                <div class="what-we-do">
+                    <h3>What We Do</h3>
+                    <div class="activities-grid">
+                        <div class="activity-card">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                            <h4>Workshops</h4>
+                            <p>Hands-on learning sessions on latest technologies and tools</p>
+                        </div>
+                        <div class="activity-card">
+                            <i class="fas fa-laptop-code"></i>
+                            <h4>Hackathons</h4>
+                            <p>24-hour coding marathons to build innovative solutions</p>
+                        </div>
+                        <div class="activity-card">
+                            <i class="fas fa-project-diagram"></i>
+                            <h4>Projects</h4>
+                            <p>Collaborative projects solving real-world problems</p>
+                        </div>
+                        <div class="activity-card">
+                            <i class="fas fa-users"></i>
+                            <h4>Networking</h4>
+                            <p>Connect with industry experts and like-minded peers</p>
+                        </div>
+                        <div class="activity-card">
+                            <i class="fas fa-brain"></i>
+                            <h4>AI Research</h4>
+                            <p>Explore cutting-edge AI research and applications</p>
+                        </div>
+                        <div class="activity-card">
+                            <i class="fas fa-trophy"></i>
+                            <h4>Competitions</h4>
+                            <p>Participate in coding challenges and hackathons</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section bg-gradient">
+    <div class="container">
+        <h2 class="section-title">Why Join AICC?</h2>
+        <div class="benefits-grid">
+            <div class="benefit-card">
+                <div class="benefit-icon">💡</div>
+                <h4>Learn & Grow</h4>
+                <p>Access to workshops, mentorship, and learning resources</p>
+            </div>
+            <div class="benefit-card">
+                <div class="benefit-icon">🤝</div>
+                <h4>Network</h4>
+                <p>Connect with industry professionals and peers</p>
+            </div>
+            <div class="benefit-card">
+                <div class="benefit-icon">🚀</div>
+                <h4>Build Projects</h4>
+                <p>Work on real-world projects and build your portfolio</p>
+            </div>
+            <div class="benefit-card">
+                <div class="benefit-icon">🏆</div>
+                <h4>Compete</h4>
+                <p>Participate in hackathons and coding competitions</p>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

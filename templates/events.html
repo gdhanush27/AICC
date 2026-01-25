@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Events - AI Coding Club{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>Our <span class="gradient-text">Events</span></h1>
+        <p>Explore our workshops, hackathons, and collaborative projects</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <!-- Event Filter -->
+        <div class="event-filter">
+            <button class="filter-btn active" data-filter="all">All Events</button>
+            <button class="filter-btn" data-filter="upcoming">Upcoming</button>
+            <button class="filter-btn" data-filter="ongoing">Ongoing</button>
+            <button class="filter-btn" data-filter="completed">Completed</button>
+        </div>
+
+        <!-- Events Grid -->
+        <div class="events-grid-full">
+            {% for event in events %}
+            <div class="event-card-full" data-status="{{ event.status }}">
+                <div class="event-image-full">
+                    <img src="{{ event.image | cache_bust }}" alt="{{ event.name }}" onerror="this.src='/static/img/poster/placeholder-image.png'">
+                    <div class="event-overlay">
+                        <span class="event-status {{ event.status }}">{{ event.status|upper }}</span>
+                    </div>
+                </div>
+                <div class="event-content-full">
+                    <h3>{{ event.name }}</h3>
+                    <div class="event-meta-full">
+                        <div class="meta-item">
+                            <i class="far fa-calendar"></i>
+                            <span>{{ event.date }}</span>
+                        </div>
+                        {% if event.time %}
+                        <div class="meta-item">
+                            <i class="far fa-clock"></i>
+                            <span>{{ event.time }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="meta-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>{{ event.location }}</span>
+                        </div>
+                    </div>
+                    <p class="event-description-full">{{ event.description }}</p>
+                    
+                    <div class="event-actions">
+                        <a href="/events/{{ event.id }}" class="btn btn-outline">View Details <i class="fas fa-arrow-right"></i></a>
+                        {% if event.register_link and event.status == 'upcoming' %}
+                        <a href="{{ event.register_link }}" class="btn btn-primary">Register Now <i class="fas fa-arrow-right"></i></a>
+                        {% elif event.status == 'completed' %}
+                        <span class="event-completed-badge"><i class="fas fa-check-circle"></i> Event Completed</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Event filtering
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const eventCards = document.querySelectorAll('.event-card-full');
+    
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all buttons
+            filterBtns.forEach(b => b.classList.remove('active'));
+            // Add active class to clicked button
+            btn.classList.add('active');
+            
+            const filter = btn.getAttribute('data-filter');
+            
+            eventCards.forEach(card => {
+                if (filter === 'all' || card.getAttribute('data-status') === filter) {
+                    card.style.display = 'flex';
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 10);
+                } else {
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        card.style.display = 'none';
+                    }, 300);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

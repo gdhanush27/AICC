@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - AICC</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="admin-dashboard">
+    <nav class="admin-nav">
+        <div class="nav-brand">
+            <i class="fas fa-shield-alt"></i>
+            AICC Admin Panel
+        </div>
+        <div class="nav-actions">
+            <button id="theme-toggle" class="btn-theme">
+                <i class="fas fa-sun"></i>
+            </button>
+            <a href="{{ url_for('home') }}" class="btn-view-site" target="_blank">
+                <i class="fas fa-external-link-alt"></i>
+                View Site
+            </a>
+            <a href="{{ url_for('admin_logout') }}" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </nav>
+    
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>Dashboard</h1>
+            <p>Manage your website content</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ events_count }}</h3>
+                    <p>Total Events</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ members_count }}</h3>
+                    <p>Team Members</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fas fa-images"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ gallery_count }}</h3>
+                    <p>Gallery Images</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="admin-grid">
+            <div class="admin-card">
+                <div class="card-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <h3>Club Information</h3>
+                <p>Edit club name, tagline, and description</p>
+                <a href="{{ url_for('admin_club_info') }}" class="btn-primary">
+                    <i class="fas fa-edit"></i>
+                    Edit Details
+                </a>
+            </div>
+            
+            <div class="admin-card">
+                <div class="card-icon">
+                    <i class="fas fa-calendar"></i>
+                </div>
+                <h3>Events</h3>
+                <p>Manage events, add new events, and edit details</p>
+                <a href="{{ url_for('admin_events') }}" class="btn-primary">
+                    <i class="fas fa-tasks"></i>
+                    Manage Events
+                </a>
+            </div>
+            
+            <div class="admin-card">
+                <div class="card-icon">
+                    <i class="fas fa-user-friends"></i>
+                </div>
+                <h3>Members</h3>
+                <p>Add and manage team members</p>
+                <a href="{{ url_for('admin_members') }}" class="btn-primary">
+                    <i class="fas fa-users-cog"></i>
+                    Manage Members
+                </a>
+            </div>
+            
+            <div class="admin-card">
+                <div class="card-icon">
+                    <i class="fas fa-envelope"></i>
+                </div>
+                <h3>Contact Info</h3>
+                <p>Update contact details and social media links</p>
+                <a href="{{ url_for('admin_contact') }}" class="btn-primary">
+                    <i class="fas fa-edit"></i>
+                    Edit Contact
+                </a>
+            </div>
+            
+            <div class="admin-card">
+                <div class="card-icon">
+                    <i class="fas fa-images"></i>
+                </div>
+                <h3>Gallery</h3>
+                <p>Upload and manage gallery images</p>
+                <a href="{{ url_for('admin_gallery') }}" class="btn-primary">
+                    <i class="fas fa-upload"></i>
+                    Manage Gallery
+                </a>
+            </div>
+        </div>
+        
+        <!-- Gallery Preview Section -->
+        <div class="admin-section">
+            <div class="section-header">
+                <h2><i class="fas fa-images"></i> Gallery Preview</h2>
+                <a href="{{ url_for('admin_gallery') }}" class="btn-secondary">
+                    <i class="fas fa-plus"></i> Add New Image
+                </a>
+            </div>
+            
+            {% if gallery %}
+            <div class="gallery-preview-grid">
+                {% for image in gallery %}
+                <div class="gallery-preview-item">
+                    <img src="{{ (image.url or image.image) | cache_bust }}" alt="{{ image.title }}">
+                    <div class="gallery-preview-overlay">
+                        <h4>{{ image.title }}</h4>
+                        <span class="badge badge-{{ image.category or 'events' }}">{{ image.category or 'events' }}</span>
+                        <div class="gallery-actions">
+                            <a href="{{ url_for('admin_edit_gallery_image', image_index=loop.index0) }}" class="btn-edit-small">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('admin_delete_gallery_image', image_index=loop.index0) }}" style="display: inline;">
+                                <button type="submit" class="btn-delete-small" onclick="return confirm('Delete this image?')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-images"></i>
+                <p>No gallery images yet. <a href="{{ url_for('admin_gallery') }}">Add your first image</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+</body>
+</html>
