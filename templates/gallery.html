@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Gallery - AI Coding Club{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>Life @ <span class="gradient-text">AICC</span></h1>
+        <p>A glimpse of our journey, teamwork, and unforgettable moments</p>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="gallery-grid">
+            {% for item in gallery %}
+            <div class="gallery-item">
+                <img src="{{ item.image | cache_bust }}" alt="{{ item.description }}" onerror="this.src='/static/img/poster/placeholder-image.png'">
+                <div class="gallery-overlay">
+                    <div class="gallery-info">
+                        <h4>{{ item.description }}</h4>
+                        <p>{{ item.title }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Simple lightbox effect
+    const galleryItems = document.querySelectorAll('.gallery-item');
+    
+    galleryItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const img = item.querySelector('img');
+            const lightbox = document.createElement('div');
+            lightbox.className = 'lightbox';
+            lightbox.innerHTML = `
+                <div class="lightbox-content">
+                    <span class="close-lightbox">&times;</span>
+                    <img src="${img.src}" alt="${img.alt}">
+                </div>
+            `;
+            document.body.appendChild(lightbox);
+            
+            setTimeout(() => lightbox.classList.add('active'), 10);
+            
+            lightbox.addEventListener('click', (e) => {
+                if (e.target === lightbox || e.target.classList.contains('close-lightbox')) {
+                    lightbox.classList.remove('active');
+                    setTimeout(() => lightbox.remove(), 300);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

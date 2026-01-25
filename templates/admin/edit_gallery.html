@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Gallery Image - AICC Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="admin-dashboard">
+    <nav class="admin-nav">
+        <div class="nav-brand">
+            <i class="fas fa-shield-alt"></i>
+            AICC Admin Panel
+        </div>
+        <div class="nav-actions">
+            <button id="theme-toggle" class="btn-theme">
+                <i class="fas fa-sun"></i>
+            </button>
+            <a href="{{ url_for('admin_gallery') }}" class="btn-back">
+                <i class="fas fa-arrow-left"></i>
+                Back to Gallery
+            </a>
+            <a href="{{ url_for('admin_logout') }}" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </nav>
+    
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>Edit Gallery Image</h1>
+            <p>Update image details</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="form-card">
+            <div class="image-preview" style="margin-bottom: 30px; text-align: center;">
+                <img src="{{ (image.url or image.image) | cache_bust }}" alt="{{ image.title }}" 
+                     style="max-width: 400px; max-height: 400px; border-radius: 12px; object-fit: cover;">
+            </div>
+            
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="title">Image Title</label>
+                        <input type="text" id="title" name="title" value="{{ image.title }}" placeholder="Enter image title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category" required>
+                            <option value="events" {% if image.category == 'events' %}selected{% endif %}>Events</option>
+                            <option value="workshops" {% if image.category == 'workshops' %}selected{% endif %}>Workshops</option>
+                            <option value="team" {% if image.category == 'team' %}selected{% endif %}>Team</option>
+                            <option value="achievements" {% if image.category == 'achievements' %}selected{% endif %}>Achievements</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description (Optional)</label>
+                    <textarea id="description" name="description" rows="3" placeholder="Enter image description">{{ image.description or '' }}</textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i>
+                        Save Changes
+                    </button>
+                    <a href="{{ url_for('admin_gallery') }}" class="btn-secondary">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+</body>
+</html>

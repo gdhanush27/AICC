@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="hero-background">
+        <div class="matrix-effect"></div>
+    </div>
+    <div class="container">
+        <div class="hero-content">
+            <div class="typing-animation">
+                <code>console.log("Welcome to AI Coding Club");</code>
+            </div>
+            <h1 class="hero-title">
+                Empowering students to <span class="gradient-text">learn, build, and innovate</span> in AI and coding.
+            </h1>
+            <p class="hero-subtitle">{{ club_info.tagline }}</p>
+            <div class="hero-buttons">
+                <a href="/events" class="btn btn-primary">Explore Events</a>
+                <a href="/about" class="btn btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </div>
+    <div class="scroll-indicator">
+        <div class="mouse">
+            <div class="wheel"></div>
+        </div>
+    </div>
+</section>
+
+<!-- Registration Deadline -->
+{% if next_deadline_event %}
+<section class="registration-deadline">
+    <div class="container">
+        <div class="deadline-card">
+            <h2>{{ next_deadline_event.name|upper }} - REGISTRATION DEADLINE</h2>
+            <div class="countdown" id="countdown">
+                <div class="countdown-item">
+                    <span class="countdown-value" id="days">00</span>
+                    <span class="countdown-label">DAYS</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value" id="hours">00</span>
+                    <span class="countdown-label">HOURS</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value" id="mins">00</span>
+                    <span class="countdown-label">MINS</span>
+                </div>
+                <div class="countdown-item">
+                    <span class="countdown-value" id="secs">00</span>
+                    <span class="countdown-label">SECS</span>
+                </div>
+            </div>
+            <p class="deadline-message">{{ next_deadline_event.registration_deadline.message }}</p>
+            <p class="deadline-date">Registration closes: {{ next_deadline_event.registration_deadline.date }}</p>
+            <a href="{{ next_deadline_event.register_link }}" class="btn btn-primary">REGISTER NOW</a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- About Section -->
+<section class="about-preview section">
+    <div class="container">
+        <h2 class="section-title">About <span class="gradient-text">Artificial Intelligence Coding Club</span></h2>
+        <div class="about-content">
+            <p>{{ club_info.description }}</p>
+            <a href="/about" class="btn btn-outline">Read More</a>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Events -->
+<section class="events-preview section">
+    <div class="container">
+        <h2 class="section-title">Upcoming <span class="gradient-text">Events</span></h2>
+        <div class="events-grid">
+            {% for event in events %}
+            <div class="event-card" data-status="{{ event.status }}">
+                <div class="event-image">
+                    <img src="{{ event.image | cache_bust }}" alt="{{ event.name }}" onerror="this.src='/static/img/poster/placeholder-image.png'">
+                    <span class="event-status {{ event.status }}">{{ event.status|upper }}</span>
+                </div>
+                <div class="event-info">
+                    <h3>{{ event.name }}</h3>
+                    <div class="event-meta">
+                        <span><i class="far fa-calendar"></i> {{ event.date }}</span>
+                        {% if event.time %}
+                        <span><i class="far fa-clock"></i> {{ event.time }}</span>
+                        {% endif %}
+                        <span><i class="fas fa-map-marker-alt"></i> {{ event.location }}</span>
+                    </div>
+                    <p class="event-description">{{ event.description }}</p>
+                    {% if event.register_link and event.status == 'upcoming' %}
+                    <a href="{{ event.register_link }}" class="btn btn-primary btn-sm">Register Now</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center">
+            <a href="/events" class="btn btn-outline">View All Events</a>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    {% if next_deadline_event %}
+    // Countdown Timer
+    const deadline = new Date('{{ next_deadline_event.registration_deadline.date }}').getTime();
+    
+    function updateCountdown() {
+        const now = new Date().getTime();
+        const distance = deadline - now;
+        
+        if (distance < 0) {
+            document.getElementById('countdown').innerHTML = '<p class="expired">Registration Closed</p>';
+            return;
+        }
+        
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        document.getElementById('days').innerText = String(days).padStart(2, '0');
+        document.getElementById('hours').innerText = String(hours).padStart(2, '0');
+        document.getElementById('mins').innerText = String(minutes).padStart(2, '0');
+        document.getElementById('secs').innerText = String(seconds).padStart(2, '0');
+    }
+    
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+    {% endif %}
+    
+    // Animate stats on scroll
+    const animateStats = () => {
+        const statNumbers = document.querySelectorAll('.stat-number');
+        
+        statNumbers.forEach(stat => {
+            const target = parseInt(stat.getAttribute('data-target'));
+            const increment = target / 100;
+            let current = 0;
+            
+            const updateStat = () => {
+                if (current < target) {
+                    current += increment;
+                    stat.innerText = Math.ceil(current) + '+';
+                    setTimeout(updateStat, 20);
+                } else {
+                    stat.innerText = target + '+';
+                }
+            };
+            
+            const observer = new IntersectionObserver((entries) => {
+                if (entries[0].isIntersecting) {
+                    updateStat();
+                    observer.disconnect();
+                }
+            });
+            
+            observer.observe(stat);
+        });
+    };
+    
+    animateStats();
+</script>
+{% endblock %}

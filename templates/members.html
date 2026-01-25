@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Members - AI Coding Club{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <div class="container">
+        <h1>Our <span class="gradient-text">Team</span></h1>
+        <p>Meet the passionate individuals driving AICC forward</p>
+    </div>
+    
+</section>
+
+<section class="section">
+    <div class="container">
+        <!-- Filter by role/year if needed in future -->
+        <div class="members-grid">
+            {% for member in members %}
+            <div class="member-card">
+                <div class="member-image">
+                    <img src="{{ (member.image or '/static/img/members/default.webp') | cache_bust }}" alt="{{ member.name }}" onerror="this.src='/static/img/members/default.webp'">
+                    <div class="member-overlay">
+                        <div class="member-social">
+                            {% if member.linkedin %}
+                            <a href="{{ member.linkedin }}" target="_blank"><i class="fab fa-linkedin"></i></a>
+                            {% endif %}
+                            {% if member.github %}
+                            <a href="{{ member.github }}" target="_blank"><i class="fab fa-github"></i></a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="member-info">
+                    <h3>{{ member.name }}</h3>
+                    <p class="member-role">{{ member.role }}</p>
+                    <p class="member-year">{{ member.year }}</p>
+                    {% if member.domain %}
+                    <p class="member-domain">{{ member.domain }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% if members|length == 0 %}
+        <div class="no-members">
+            <i class="fas fa-users"></i>
+            <p>Member information will be updated soon!</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="section bg-gradient">
+    <div class="container text-center">
+        <h2>Want to Join Our Team?</h2>
+        <p class="lead">We're always looking for passionate students interested in AI and coding!</p>
+        <a href="#contact" class="btn btn-primary">Get in Touch</a>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}{{ event.name }} - AI Coding Club{% endblock %}
+
+{% block content %}
+<!-- Event Hero Section -->
+<section class="event-hero">
+    <div class="event-hero-bg" style="background-image: url('{{ event.image | cache_bust }}');"></div>
+    <div class="event-hero-overlay"></div>
+    <div class="container">
+        <div class="event-hero-content">
+            <a href="/events" class="back-link"><i class="fas fa-arrow-left"></i> Back to Events</a>
+            <span class="event-status-badge {{ event.status }}">{{ event.status|upper }}</span>
+            <h1>{{ event.name }}</h1>
+            <div class="event-meta-hero">
+                <div class="meta-item">
+                    <i class="far fa-calendar"></i>
+                    <span>{{ event.date }}</span>
+                </div>
+                {% if event.time %}
+                <div class="meta-item">
+                    <i class="far fa-clock"></i>
+                    <span>{{ event.time }}</span>
+                </div>
+                {% endif %}
+                <div class="meta-item">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>{{ event.location }}</span>
+                </div>
+            </div>
+            {% if event.register_link and event.status == 'upcoming' %}
+            <a href="{{ event.register_link }}" class="btn btn-primary btn-lg">Register Now <i class="fas fa-arrow-right"></i></a>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<!-- Event Details Section -->
+<section class="section">
+    <div class="container">
+        <div class="event-detail-grid">
+            <!-- Main Content -->
+            <div class="event-main-content">
+                <!-- About Event -->
+                <div class="detail-card">
+                    <h2><i class="fas fa-info-circle"></i> About the Event</h2>
+                    <p>{{ event.description }}</p>
+                </div>
+
+                <!-- How it Works -->
+                {% if event.how %}
+                <div class="detail-card">
+                    <h2><i class="fas fa-cogs"></i> How it Works</h2>
+                    <p>{{ event.how }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Rules -->
+                {% if event.rules %}
+                <div class="detail-card">
+                    <h2><i class="fas fa-list-check"></i> Rules & Guidelines</h2>
+                    <ul class="rules-list">
+                        {% for rule in event.rules %}
+                        <li><i class="fas fa-check-circle"></i> {{ rule }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Sidebar -->
+            <div class="event-sidebar">
+                <!-- Registration Card -->
+                {% if event.register_link and event.status == 'upcoming' %}
+                <div class="sidebar-card registration-card">
+                    <h3>Register Now</h3>
+                    {% if event.registration_deadline %}
+                    <div class="deadline-info">
+                        <i class="far fa-calendar-times"></i>
+                        <div>
+                            <strong>Registration Deadline</strong>
+                            <p>{{ event.registration_deadline.date }}</p>
+                        </div>
+                    </div>
+                    <p class="deadline-message">{{ event.registration_deadline.message }}</p>
+                    {% endif %}
+                    <a href="{{ event.register_link }}" class="btn btn-primary btn-block">Register Now</a>
+                </div>
+                {% endif %}
+
+                <!-- Event Coordinators -->
+                {% if event.coordinators %}
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-users"></i> Event Coordinators</h3>
+                    <div class="coordinators-list">
+                        {% for coordinator in event.coordinators %}
+                        <div class="coordinator-item">
+                            <div class="coordinator-icon">
+                                <i class="fas fa-user-circle"></i>
+                            </div>
+                            <div class="coordinator-info">
+                                <h4>{{ coordinator.name }}</h4>
+                                <p class="coordinator-role">{{ coordinator.role }}</p>
+                                {% if coordinator.phone %}
+                                <p><i class="fas fa-phone"></i> {{ coordinator.phone }}</p>
+                                {% endif %}
+                                {% if coordinator.email %}
+                                <p><i class="fas fa-envelope"></i> {{ coordinator.email }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Quick Info -->
+                <div class="sidebar-card">
+                    <h3><i class="fas fa-info"></i> Quick Info</h3>
+                    <div class="quick-info-list">
+                        <div class="info-item">
+                            <i class="far fa-calendar"></i>
+                            <div>
+                                <strong>Date</strong>
+                                <p>{{ event.date }}</p>
+                            </div>
+                        </div>
+                        {% if event.time %}
+                        <div class="info-item">
+                            <i class="far fa-clock"></i>
+                            <div>
+                                <strong>Time</strong>
+                                <p>{{ event.time }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="info-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div>
+                                <strong>Venue</strong>
+                                <p>{{ event.location }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

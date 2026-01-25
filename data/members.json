@@ -1,0 +1,11 @@
+[
+    {
+        "name": "Member Name",
+        "role": "President",
+        "year": "3rd Year",
+        "domain": "AI/ML",
+        "image": "/static/img/members/placeholder.jpg",
+        "linkedin": "https://linkedin.com/in/username",
+        "github": "https://github.com/username"
+    }
+]

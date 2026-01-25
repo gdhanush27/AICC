@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Coding Club - AICC{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body data-theme="light">
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-wrapper">
+                <a href="/" class="logo">
+                    <img src="{{ club_info.logo }}" alt="AICC Logo" onerror="this.style.display='none'">
+                    <span>{{ club_info.short_name }}</span>
+                </a>
+                <button class="nav-toggle" id="navToggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="/" class="nav-link">Home</a></li>
+                    <li><a href="/about" class="nav-link">About</a></li>
+                    <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/gallery" class="nav-link">Gallery</a></li>
+                    <li><a href="/members" class="nav-link">Members</a></li>
+                    <li><a href="#contact" class="nav-link">Contact</a></li>
+                    <li>
+                        <button id="theme-toggle-main" class="theme-toggle-btn">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer" id="contact">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <h3>{{ club_info.short_name }}</h3>
+                    <p>{{ club_info.department }}</p>
+                    <p>{{ club_info.college }}</p>
+                    <p>{{ club_info.address }}</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Connect with us</h4>
+                    <div class="social-links">
+                        <a href="{{ contact.linkedin }}" target="_blank"><i class="fab fa-linkedin"></i></a>
+                        <a href="{{ contact.instagram }}" target="_blank"><i class="fab fa-instagram"></i></a>
+                        <a href="mailto:{{ contact.email }}"><i class="fas fa-envelope"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>📱 Contact</h4>
+                    <p><strong>Faculty Coordinators:</strong></p>
+                    {% for coordinator in contact.faculty_coordinators %}
+                    <p>{{ coordinator.name }}: {{ coordinator.phone }}</p>
+                    {% endfor %}
+                    <p><strong>Secretaries:</strong></p>
+                    {% for secretary in contact.secretaries %}
+                    <p>{{ secretary.name }}: {{ secretary.phone }}</p>
+                    {% endfor %}
+                </div>
+                <div class="footer-col">
+                    <h4>🔗 Quick Links</h4>
+                    <ul class="footer-links">
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/about">About</a></li>
+                        <li><a href="/events">Events</a></li>
+                        <li><a href="/gallery">Gallery</a></li>
+                        <li><a href="/members">Members</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>✦ © 2026 AI Coding Club. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
