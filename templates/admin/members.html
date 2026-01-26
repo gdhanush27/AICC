@@ -47,7 +47,7 @@
         
         <div class="form-card">
             <h2>Add New Member</h2>
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="name">Full Name</label>
@@ -73,10 +73,10 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="image">Image URL (Optional)</label>
-                    <input type="url" id="image" name="image" placeholder="https://... (leave empty for default)">
+                    <label for="member_image">Upload Image</label>
+                    <input type="file" id="member_image" name="member_image" accept="image/*">
                     <small style="color: var(--admin-gray-light); display: block; margin-top: 5px;">
-                        Leave empty to use default profile image
+                        Upload a profile image (PNG, JPG, GIF, WEBP) or leave empty for default
                     </small>
                 </div>
                 

@@ -46,7 +46,7 @@
         {% endwith %}
         
         <div class="form-card">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="name">Club Name</label>
@@ -87,8 +87,12 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="logo">Logo URL</label>
-                    <input type="url" id="logo" name="logo" value="{{ club_info.logo }}" required>
+                    <label for="logo_image">Upload Logo</label>
+                    <input type="file" id="logo_image" name="logo_image" accept="image/*">
+                    <small style="color: var(--admin-gray-light); display: block; margin-top: 5px;">
+                        Current logo: {{ club_info.logo }}<br>
+                        Upload a new logo image (PNG, JPG, GIF, WEBP) or leave empty to keep current
+                    </small>
                 </div>
                 
                 <div class="form-actions">

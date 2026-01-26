@@ -6,26 +6,28 @@ import os
 import json
 import time
 
-# Get the absolute path of the directory containing this file
+# Get the absolute path of the directory containing this file (AICC/)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# All data, templates, and static folders are in the same AICC directory
+PROJECT_ROOT = BASE_DIR
 
 # Function to ensure all required folders and files exist
 def initialize_app_structure():
     """Create all necessary folders and files if they don't exist"""
     
-    # Create necessary directories
+    # Create necessary directories in PROJECT_ROOT
     directories = [
-        os.path.join(BASE_DIR, 'data'),
-        os.path.join(BASE_DIR, 'static'),
-        os.path.join(BASE_DIR, 'static/uploads'),
-        os.path.join(BASE_DIR, 'static/css'),
-        os.path.join(BASE_DIR, 'static/js'),
-        os.path.join(BASE_DIR, 'static/img'),
-        os.path.join(BASE_DIR, 'static/img/members'),
-        os.path.join(BASE_DIR, 'static/img/life'),
-        os.path.join(BASE_DIR, 'static/img/poster'),
-        os.path.join(BASE_DIR, 'templates'),
-        os.path.join(BASE_DIR, 'templates/admin'),
+        os.path.join(PROJECT_ROOT, 'data'),
+        os.path.join(PROJECT_ROOT, 'static'),
+        os.path.join(PROJECT_ROOT, 'static/uploads'),
+        os.path.join(PROJECT_ROOT, 'static/css'),
+        os.path.join(PROJECT_ROOT, 'static/js'),
+        os.path.join(PROJECT_ROOT, 'static/img'),
+        os.path.join(PROJECT_ROOT, 'static/img/members'),
+        os.path.join(PROJECT_ROOT, 'static/img/life'),
+        os.path.join(PROJECT_ROOT, 'static/img/poster'),
+        os.path.join(PROJECT_ROOT, 'templates'),
+        os.path.join(PROJECT_ROOT, 'templates/admin'),
     ]
     
     for directory in directories:
@@ -57,7 +59,7 @@ def initialize_app_structure():
     }
     
     for file_path, default_content in data_files.items():
-        full_path = os.path.join(BASE_DIR, file_path)
+        full_path = os.path.join(PROJECT_ROOT, file_path)
         if not os.path.exists(full_path):
             with open(full_path, 'w') as f:
                 json.dump(default_content, f, indent=4)
@@ -70,9 +72,11 @@ def initialize_app_structure():
 # Initialize app structure on startup
 initialize_app_structure()
 
-app = Flask(__name__)
+app = Flask(__name__, 
+            template_folder=os.path.join(PROJECT_ROOT, 'templates'),
+            static_folder=os.path.join(PROJECT_ROOT, 'static'))
 app.secret_key = 'your-secret-key-change-this-in-production'  # ⚠️ CHANGE THIS IN PRODUCTION!
-app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static/uploads')
+app.config['UPLOAD_FOLDER'] = os.path.join(PROJECT_ROOT, 'static/uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching in development
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
@@ -80,15 +84,16 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 # Function to load data from JSON files
 def load_data():
     """Reload all data from JSON files"""
-    with open('data/club_info.json', 'r') as f:
+    data_dir = os.path.join(PROJECT_ROOT, 'data')
+    with open(os.path.join(data_dir, 'club_info.json'), 'r') as f:
         club_info = json.load(f)
-    with open('data/events.json', 'r') as f:
+    with open(os.path.join(data_dir, 'events.json'), 'r') as f:
         events = json.load(f)
-    with open('data/members.json', 'r') as f:
+    with open(os.path.join(data_dir, 'members.json'), 'r') as f:
         members = json.load(f)
-    with open('data/gallery.json', 'r') as f:
+    with open(os.path.join(data_dir, 'gallery.json'), 'r') as f:
         gallery = json.load(f)
-    with open('data/contact_info.json', 'r') as f:
+    with open(os.path.join(data_dir, 'contact_info.json'), 'r') as f:
         contact_info = json.load(f)
     return club_info, events, members, gallery, contact_info
 
@@ -300,6 +305,25 @@ def admin_club_info():
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
     if request.method == 'POST':
+        # Reload current club info
+        CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO = load_data()
+        
+        # Handle logo upload
+        logo_url = CLUB_INFO.get('logo', '/static/img/aicc-logo.webp')
+        if 'logo_image' in request.files:
+            file = request.files['logo_image']
+            if file and file.filename and allowed_file(file.filename):
+                # Delete old logo if it's in uploads folder
+                delete_old_image(logo_url)
+                
+                filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{filename}"
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                logo_url = f"/static/uploads/{filename}"
+        
         data = {
             'name': request.form.get('name'),
             'short_name': request.form.get('short_name'),
@@ -308,10 +332,10 @@ def admin_club_info():
             'college': request.form.get('college'),
             'department': request.form.get('department'),
             'address': request.form.get('address'),
-            'logo': request.form.get('logo')
+            'logo': logo_url
         }
         
-        with open('data/club_info.json', 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/club_info.json'), 'w') as f:
             json.dump(data, f, indent=4)
         
         # Reload data
@@ -331,7 +355,7 @@ def admin_events():
     
     if request.method == 'POST':
         # Reload events from file
-        with open('data/events.json', 'r') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
             events = json.load(f)
         
         # Handle image upload
@@ -374,7 +398,7 @@ def admin_events():
         
         events.append(new_event)
         
-        with open('data/events.json', 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
             json.dump(events, f, indent=4)
         
         # Reload data
@@ -392,7 +416,7 @@ def admin_delete_event(event_id):
     """Delete an event"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
-    with open('data/events.json', 'r') as f:
+    with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
         events = json.load(f)
     
     # Find the event and delete its image before removing
@@ -402,7 +426,7 @@ def admin_delete_event(event_id):
     
     events = [e for e in events if e.get('id') != event_id]
     
-    with open('data/events.json', 'w') as f:
+    with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
         json.dump(events, f, indent=4)
     
     # Reload data
@@ -418,22 +442,35 @@ def admin_members():
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
     if request.method == 'POST':
-        with open(os.path.join(BASE_DIR, 'data/members.json'), 'r') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'r') as f:
             members = json.load(f)
+        
+        # Handle image upload
+        image_url = '/static/img/members/default.webp'
+        if 'member_image' in request.files:
+            file = request.files['member_image']
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{filename}"
+                os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                image_url = f"/static/uploads/{filename}"
         
         new_member = {
             'name': request.form.get('name'),
             'role': request.form.get('role'),
             'year': request.form.get('year'),
             'domain': request.form.get('domain'),
-            'image': request.form.get('image') or '/static/img/members/default.webp',
+            'image': image_url,
             'linkedin': request.form.get('linkedin'),
             'github': request.form.get('github')
         }
         
         members.append(new_member)
         
-        with open(os.path.join(BASE_DIR, 'data/members.json'), 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'w') as f:
             json.dump(members, f, indent=4)
         
         # Reload data
@@ -460,7 +497,7 @@ def admin_contact():
             'secretaries': CONTACT_INFO.get('secretaries', [])
         }
         
-        with open('data/contact_info.json', 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/contact_info.json'), 'w') as f:
             json.dump(data, f, indent=4)
         
         # Reload data
@@ -515,7 +552,7 @@ def admin_edit_event(event_id):
     """Edit an existing event"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
-    with open('data/events.json', 'r') as f:
+    with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
         events = json.load(f)
     
     event = next((e for e in events if e.get('id') == event_id), None)
@@ -564,7 +601,7 @@ def admin_edit_event(event_id):
             # Remove deadline if fields are empty
             del event['registration_deadline']
         
-        with open('data/events.json', 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
             json.dump(events, f, indent=4)
         
         # Reload data
@@ -581,7 +618,7 @@ def admin_edit_member(member_index):
     """Edit an existing member"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
-    with open('data/members.json', 'r') as f:
+    with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'r') as f:
         members = json.load(f)
     
     if member_index >= len(members):
@@ -625,7 +662,7 @@ def admin_edit_member(member_index):
             'github': request.form.get('github')
         }
         
-        with open(os.path.join(BASE_DIR, 'data/members.json'), 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'w') as f:
             json.dump(members, f, indent=4)
         
         # Reload data
@@ -642,7 +679,7 @@ def admin_delete_member(member_index):
     """Delete a member"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
-    with open(os.path.join(BASE_DIR, 'data/members.json'), 'r') as f:
+    with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'r') as f:
         members = json.load(f)
     
     if member_index < len(members):
@@ -652,7 +689,7 @@ def admin_delete_member(member_index):
         
         members.pop(member_index)
         
-        with open(os.path.join(BASE_DIR, 'data/members.json'), 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'w') as f:
             json.dump(members, f, indent=4)
         
         # Reload data
@@ -680,7 +717,7 @@ def admin_gallery():
                 file.save(filepath)
                 
                 # Add to gallery
-                with open(os.path.join(BASE_DIR, 'data/gallery.json'), 'r') as f:
+                with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'r') as f:
                     gallery = json.load(f)
                 
                 new_image = {
@@ -691,7 +728,7 @@ def admin_gallery():
                 
                 gallery.append(new_image)
                 
-                with open(os.path.join(BASE_DIR, 'data/gallery.json'), 'w') as f:
+                with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'w') as f:
                     json.dump(gallery, f, indent=4)
                 
                 # Reload data
@@ -709,7 +746,7 @@ def admin_edit_gallery_image(image_index):
     """Edit a gallery image"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
-    with open(os.path.join(BASE_DIR, 'data/gallery.json'), 'r') as f:
+    with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'r') as f:
         gallery = json.load(f)
     
     if image_index >= len(gallery):
@@ -724,7 +761,7 @@ def admin_edit_gallery_image(image_index):
         image['category'] = request.form.get('category', 'events')
         image['description'] = request.form.get('description', '')
         
-        with open(os.path.join(BASE_DIR, 'data/gallery.json'), 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'w') as f:
             json.dump(gallery, f, indent=4)
         
         # Reload data
@@ -741,7 +778,7 @@ def admin_delete_gallery_image(image_index):
     """Delete a gallery image"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY, CONTACT_INFO
     
-    with open(os.path.join(BASE_DIR, 'data/gallery.json'), 'r') as f:
+    with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'r') as f:
         gallery = json.load(f)
     
     if image_index < len(gallery):
@@ -751,7 +788,7 @@ def admin_delete_gallery_image(image_index):
         
         gallery.pop(image_index)
         
-        with open(os.path.join(BASE_DIR, 'data/gallery.json'), 'w') as f:
+        with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'w') as f:
             json.dump(gallery, f, indent=4)
         
         # Reload data
