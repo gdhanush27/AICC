@@ -9,6 +9,67 @@ import time
 # Get the absolute path of the directory containing this file
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Function to ensure all required folders and files exist
+def initialize_app_structure():
+    """Create all necessary folders and files if they don't exist"""
+    
+    # Create necessary directories
+    directories = [
+        os.path.join(BASE_DIR, 'data'),
+        os.path.join(BASE_DIR, 'static'),
+        os.path.join(BASE_DIR, 'static/uploads'),
+        os.path.join(BASE_DIR, 'static/css'),
+        os.path.join(BASE_DIR, 'static/js'),
+        os.path.join(BASE_DIR, 'static/img'),
+        os.path.join(BASE_DIR, 'static/img/members'),
+        os.path.join(BASE_DIR, 'static/img/life'),
+        os.path.join(BASE_DIR, 'static/img/poster'),
+        os.path.join(BASE_DIR, 'templates'),
+        os.path.join(BASE_DIR, 'templates/admin'),
+    ]
+    
+    for directory in directories:
+        os.makedirs(directory, exist_ok=True)
+        print(f"✓ Directory ensured: {directory}")
+    
+    # Create default JSON files if they don't exist
+    data_files = {
+        'data/club_info.json': {
+            "name": "AI and Cybersecurity Club",
+            "short_name": "AICC",
+            "tagline": "Innovate. Secure. Excel.",
+            "description": "The AI and Cybersecurity Club is a student-driven community dedicated to exploring cutting-edge technologies in artificial intelligence and cybersecurity.",
+            "college": "Thiagarajar College of Engineering",
+            "department": "Department of Computer Science and Engineering",
+            "address": "Madurai, Tamil Nadu, India",
+            "logo": "/static/img/aicc-logo.webp"
+        },
+        'data/events.json': [],
+        'data/members.json': [],
+        'data/gallery.json': [],
+        'data/contact_info.json': {
+            "email": "aicc@tce.edu",
+            "instagram": "https://instagram.com/aicc_tce",
+            "linkedin": "https://linkedin.com/company/aicc-tce",
+            "faculty_coordinators": [],
+            "secretaries": []
+        }
+    }
+    
+    for file_path, default_content in data_files.items():
+        full_path = os.path.join(BASE_DIR, file_path)
+        if not os.path.exists(full_path):
+            with open(full_path, 'w') as f:
+                json.dump(default_content, f, indent=4)
+            print(f"✓ Created: {file_path}")
+        else:
+            print(f"✓ File exists: {file_path}")
+    
+    print("✓ App structure initialized successfully!")
+
+# Initialize app structure on startup
+initialize_app_structure()
+
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-change-this-in-production'  # ⚠️ CHANGE THIS IN PRODUCTION!
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static/uploads')
@@ -212,7 +273,6 @@ def admin_logout():
 
 def admin_required(f):
     """Decorator to require admin login"""
-    from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('admin_logged_in'):
