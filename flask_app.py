@@ -390,10 +390,10 @@ def admin_events():
         # Add registration deadline if provided
         deadline_date = request.form.get('deadline_date')
         deadline_message = request.form.get('deadline_message')
-        if deadline_date and deadline_message:
+        if deadline_date:
             new_event['registration_deadline'] = {
                 'date': deadline_date,
-                'message': deadline_message
+                'message': deadline_message if deadline_message else 'Register now!'
             }
         
         events.append(new_event)
@@ -592,10 +592,10 @@ def admin_edit_event(event_id):
         # Handle registration deadline
         deadline_date = request.form.get('deadline_date')
         deadline_message = request.form.get('deadline_message')
-        if deadline_date and deadline_message:
+        if deadline_date:
             event['registration_deadline'] = {
                 'date': deadline_date,
-                'message': deadline_message
+                'message': deadline_message if deadline_message else 'Register now!'
             }
         elif 'registration_deadline' in event:
             # Remove deadline if fields are empty
