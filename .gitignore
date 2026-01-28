@@ -17,19 +17,3 @@ build/
 *.log
 instance/
 .webassets-cache
-
-# Uploaded files and images
-static/uploads/*
-!static/uploads/.gitkeep
-static/img/members/*.webp
-static/img/members/*.jpg
-static/img/members/*.png
-!static/img/members/placeholder.jpg
-static/img/poster/*.webp
-static/img/poster/*.jpg
-static/img/poster/*.png
-!static/img/poster/placeholder.jpg
-static/img/life/*.webp
-static/img/life/*.jpg
-static/img/life/*.png
-data/*.json

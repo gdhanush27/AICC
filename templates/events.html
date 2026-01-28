@@ -52,8 +52,12 @@
                     
                     <div class="event-actions">
                         <a href="/events/{{ event.id }}" class="btn btn-outline">View Details <i class="fas fa-arrow-right"></i></a>
-                        {% if event.register_link and event.status == 'upcoming' %}
-                        <a href="{{ event.register_link }}" class="btn btn-primary">Register Now <i class="fas fa-arrow-right"></i></a>
+                        {% if event.status == 'upcoming' %}
+                            {% if event.registration_type == 'external' and event.register_link %}
+                            <a href="{{ event.register_link }}" class="btn btn-primary">Register Now <i class="fas fa-arrow-right"></i></a>
+                            {% elif event.registration_type == 'internal' %}
+                            <a href="/events/{{ event.id }}/register" class="btn btn-primary">Register Now <i class="fas fa-arrow-right"></i></a>
+                            {% endif %}
                         {% elif event.status == 'completed' %}
                         <span class="event-completed-badge"><i class="fas fa-check-circle"></i> Event Completed</span>
                         {% endif %}

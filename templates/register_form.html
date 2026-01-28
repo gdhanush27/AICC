@@ -1,0 +1,1002 @@
+{% extends "base.html" %}
+
+{% block title %}Event Registration - {{ event.name }}{% endblock %}
+
+{% block extra_head %}
+<!-- Razorpay SDK -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="register-page">
+    <div class="register-hero">
+        <div class="register-hero-bg"></div>
+        <div class="container mx-auto px-4 py-12 mt-20">
+            <div class="register-hero-card">
+                <div class="hero-content">
+                    <div class="hero-badges">
+                        <span class="badge-pill">{{ event.status|upper }}</span>
+                        <span class="badge-pill">{{ event.date }}</span>
+                        {% if event.time %}<span class="badge-pill">{{ event.time }}</span>{% endif %}
+                    </div>
+                    <h1 class="hero-title">{{ event.name }}</h1>
+                    <p class="hero-subtitle"><i class="fas fa-map-marker-alt"></i> {{ event.location }}</p>
+                    {% if event.registration_deadline %}
+                    <div class="deadline-alert">
+                        <i class="far fa-calendar-times"></i>
+                        <div>
+                            <strong>Registration closes</strong>
+                            <span>{{ event.registration_deadline.date }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="hero-meta">
+                    <div class="meta-card">
+                        <h3>Why join?</h3>
+                        <p>{{ event.description }}</p>
+                    </div>
+                    {% if event.rules %}
+                    <div class="meta-card">
+                        <h3>Rules</h3>
+                        <ul>
+                            {% for rule in event.rules %}
+                            <li>{{ rule }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-10">
+        <div class="register-grid">
+            <!-- Registration Form -->
+            <div class="form-card">
+                <div class="form-card-header">
+                    <h2>Registration Form</h2>
+                    <div class="progress-indicator">
+                        <span class="progress-dot active"></span>
+                        <span class="progress-dot"></span>
+                        <span class="progress-dot"></span>
+                    </div>
+                </div>
+            
+            {% if form and form.active and submit_endpoint %}
+            
+            <!-- Info Banner -->
+            <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 1px solid var(--primary-color); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; display: flex; align-items: start; gap: 1rem;">
+                <i class="fas fa-info-circle" style="color: var(--primary-color); font-size: 1.5rem; margin-top: 0.25rem;"></i>
+                <div style="flex: 1;">
+                    <strong style="color: var(--primary-color); display: block; margin-bottom: 0.25rem;">Quick Tip</strong>
+                    <span style="color: var(--text-secondary); font-size: 0.9rem;">Fields marked with <span style="color: var(--danger);">*</span> are required. Make sure all information is accurate before submitting.</span>
+                </div>
+            </div>
+            
+            <form id="registrationForm" action="{{ submit_endpoint }}" method="POST" class="space-y-6" novalidate>
+                <input type="hidden" name="event_id" value="{{ event.id }}">
+                <input type="hidden" name="template_id" value="{{ form.id }}">
+
+                <!-- MANDATORY SUBMITTER EMAIL FIELD (Default for all forms) -->
+                <div class="form-group" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border: 2px solid var(--primary-color);">
+                    <label for="submitter_email" class="form-label">
+                        <i class="fas fa-envelope" style="margin-right: 0.5rem; color: var(--primary-color);"></i>
+                        Your Email Address (Submitter)
+                        <span class="text-red-500">*</span>
+                    </label>
+                    <input 
+                        type="email" 
+                        id="submitter_email" 
+                        name="submitter_email" 
+                        required
+                        placeholder="your.email@example.com"
+                        class="form-input"
+                        style="border-color: var(--primary-color);"
+                    >
+                    <p class="helper-text" style="color: var(--primary-color); font-weight: 500;">
+                        <i class="fas fa-info-circle"></i> This email will be used for all communications and must be unique.
+                    </p>
+                </div>
+
+                {% for field in form.fields %}
+                <div class="form-group">
+                    <label for="{{ field.name }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.required %}
+                        <span class="text-red-500">*</span>
+                        {% endif %}
+                    </label>
+
+                    {% if field.type == 'text' or field.type == 'email' or field.type == 'tel' %}
+                    <input 
+                        type="{{ field.type }}" 
+                        id="{{ field.name }}" 
+                        name="{{ field.name }}" 
+                        {% if field.required %}required{% endif %}
+                        placeholder="{{ field.placeholder }}"
+                        class="form-input"
+                    >
+
+                    {% elif field.type == 'select' %}
+                    <select 
+                        id="{{ field.name }}" 
+                        name="{{ field.name }}" 
+                        {% if field.required %}required{% endif %}
+                        class="form-input"
+                    >
+                        <option value="">-- Select --</option>
+                        {% for option in field.options %}
+                        <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+
+                    {% elif field.type == 'textarea' %}
+                    <textarea 
+                        id="{{ field.name }}" 
+                        name="{{ field.name }}" 
+                        {% if field.required %}required{% endif %}
+                        {% if field.maxlength %}maxlength="{{ field.maxlength }}"{% endif %}
+                        placeholder="{{ field.placeholder }}"
+                        rows="5"
+                        class="form-input"
+                    ></textarea>
+                    {% if field.maxlength %}
+                    <p class="helper-text">Maximum {{ field.maxlength }} characters</p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                {% if form.payment_enabled and form.payment_amount %}
+                <!-- Payment Section -->
+                <div class="payment-section">
+                    <div class="payment-badge">
+                        <i class="fas fa-lock"></i> Secure Payment
+                    </div>
+                    <div class="payment-content">
+                        <div class="payment-details">
+                            <h3 class="payment-title">Registration Fee</h3>
+                            <div class="payment-amount">
+                                <span class="currency">₹</span>
+                                <span class="amount">{{ form.payment_amount }}</span>
+                            </div>
+                            <p class="payment-description">{{ form.payment_description or 'Complete payment to confirm your registration' }}</p>
+                        </div>
+                    </div>
+                    <div class="payment-footer">
+                        <div class="payment-provider">
+                            <i class="fas fa-shield-check"></i>
+                            <span>Powered by <strong>Razorpay</strong></span>
+                        </div>
+                        <div class="payment-features">
+                            <span class="feature-tag"><i class="fas fa-check-circle"></i> Instant confirmation</span>
+                            <span class="feature-tag"><i class="fas fa-check-circle"></i> 100% Secure</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Submit Button -->
+                <div class="form-actions">
+                    <button 
+                        type="submit" 
+                        id="submitBtn"
+                        class="btn-primary-lg"
+                    >
+                        <i class="fas fa-{% if form.payment_enabled %}lock{% else %}paper-plane{% endif %}" style="margin-right: 0.5rem;"></i>
+                        {% if form.payment_enabled %}Proceed to Payment{% else %}Submit Registration{% endif %}
+                    </button>
+                    <a href="/events" class="btn-ghost">
+                        <i class="fas fa-arrow-left" style="margin-right: 0.5rem;"></i>
+                        Back to Events
+                    </a>
+                </div>
+            </form>
+
+            <!-- Success Message (Hidden by default) -->
+            <div id="successMessage" class="hidden alert alert-success">
+                <div>
+                    <p class="font-semibold" style="font-size: 1.1rem; margin-bottom: 0.5rem;">🎉 Registration Successful!</p>
+                    <p style="font-size: 0.9rem; opacity: 0.9;">{{ form.success_message }}</p>
+                    
+                    <!-- Registration ID Display -->
+                    <div id="registrationDetails" style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.5); border-radius: 8px; border: 1px solid rgba(34,197,94,0.3);">
+                        <p style="font-weight: 600; margin-bottom: 0.5rem; color: #15803d;">📋 Registration ID:</p>
+                        <p id="displayRegistrationId" style="font-family: monospace; font-size: 0.85rem; word-break: break-all; margin-bottom: 1rem; padding: 0.5rem; background: white; border-radius: 4px;"></p>
+                        
+                        <!-- QR Code Display -->
+                        <div id="qrCodeContainer" style="text-align: center; margin-top: 1rem;">
+                            <p style="font-weight: 600; margin-bottom: 0.5rem; color: #15803d;">📱 Your QR Code:</p>
+                            <img id="qrCodeImage" src="" alt="Registration QR Code" style="max-width: 200px; border: 2px solid #22c55e; border-radius: 8px; padding: 0.5rem; background: white;">
+                            <p style="font-size: 0.75rem; margin-top: 0.5rem; opacity: 0.8;">Save this QR code for event check-in</p>
+                        </div>
+                    </div>
+                    
+                    <p style="font-size: 0.85rem; opacity: 0.8; margin-top: 1rem;">📧 <span id="emailStatus">You should receive a confirmation email shortly.</span></p>
+                </div>
+            </div>
+
+            <!-- Error Message (Hidden by default) -->
+            <div id="errorMessage" class="hidden alert alert-error">
+                <div>
+                    <p class="font-semibold" style="font-size: 1.1rem; margin-bottom: 0.5rem;">❌ Submission Failed</p>
+                    <p id="errorText" style="font-size: 0.9rem;">An error occurred. Please try again.</p>
+                </div>
+            </div>
+
+            {% elif form and not form.active %}
+            <div class="empty-state">
+                <i class="fas fa-lock"></i>
+                <p>This registration form is currently inactive.</p>
+                <a href="/events" class="btn-ghost">Back to Events</a>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Registration form not available at this time.</p>
+                <a href="/events" class="btn-ghost">Back to Events</a>
+            </div>
+            {% endif %}
+            </div>
+
+            <!-- Side Panel -->
+            <aside class="side-panel">
+                <div class="panel-card">
+                    <h3>Event Details</h3>
+                    <p>{{ event.how }}</p>
+                </div>
+                {% if event.coordinators %}
+                <div class="panel-card">
+                    <h3>Contact Coordinators</h3>
+                    <div class="coordinator-list">
+                        {% for coordinator in event.coordinators %}
+                        <div class="coordinator-item">
+                            <div class="avatar"><i class="fas fa-user"></i></div>
+                            <div>
+                                <strong>{{ coordinator.name }}</strong>
+                                <span>{{ coordinator.role }}</span>
+                                {% if coordinator.phone %}<span><i class="fas fa-phone"></i> {{ coordinator.phone }}</span>{% endif %}
+                                {% if coordinator.email %}<span><i class="fas fa-envelope"></i> {{ coordinator.email }}</span>{% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                <div class="panel-card tips">
+                    <h3>Tips</h3>
+                    <ul>
+                        <li>Use your official email</li>
+                        <li>Double-check spelling</li>
+                        <li>Keep phone number active</li>
+                    </ul>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+
+<script>
+// Notification function to show visual feedback
+function showNotification(title, message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `flash-message flash-${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span><strong>${title}</strong><br>${message}</span>
+        <button class="flash-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    // Add to container or create one
+    let container = document.querySelector('.flash-messages-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'flash-messages-container';
+        document.body.appendChild(container);
+    }
+    
+    container.appendChild(notification);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        notification.classList.add('dismissing');
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+
+const registrationForm = document.getElementById('registrationForm');
+if (registrationForm) {
+let isSubmitting = false; // Prevent duplicate submissions
+
+registrationForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+        console.log('Form is already being submitted, ignoring duplicate request');
+        return;
+    }
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const successMsg = document.getElementById('successMessage');
+    const errorMsg = document.getElementById('errorMessage');
+    const errorText = document.getElementById('errorText');
+    
+    // Mark as submitting
+    isSubmitting = true;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    
+    // Hide previous messages
+    successMsg.classList.add('hidden');
+    successMsg.style.display = 'none';
+    errorMsg.classList.add('hidden');
+    errorMsg.style.display = 'none';
+    
+    try {
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData);
+        
+        const response = await fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        let result;
+        try {
+            result = await response.json();
+        } catch (jsonError) {
+            // JSON parsing failed
+            console.error('JSON parse error:', jsonError);
+            errorText.textContent = 'Invalid response from server. Please try again.';
+            errorMsg.classList.remove('hidden');
+            errorMsg.style.display = 'block';
+            errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            showNotification('Error ❌', 'Invalid response from server', 'error');
+            return;
+        }
+        
+        if (response.ok) {
+            // IMPORTANT: Check payment_required FIRST before showing success
+            if (result.payment_required === true) {
+                // FORCE hide success message
+                successMsg.classList.add('hidden');
+                successMsg.style.display = 'none';
+                errorMsg.classList.add('hidden');
+                errorMsg.style.display = 'none';
+                
+                if (!result.order_id) {
+                    errorText.textContent = 'Payment initialization failed';
+                    errorMsg.classList.remove('hidden');
+                    errorMsg.style.display = 'block';
+                    successMsg.classList.add('hidden');
+                    successMsg.style.display = 'none';
+                    
+                    errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // Show browser notification
+                    showNotification('Payment Failed ❌', 'Payment initialization failed', 'error');
+                    return;
+                }
+                
+                // Initialize Razorpay checkout
+                try {
+                    const options = {
+                        key: result.key_id,
+                        amount: result.amount * 100, // Convert to paise
+                        currency: result.currency || 'INR',
+                        order_id: result.order_id,
+                        name: '{{ event.name }}',
+                        description: '{{ form.payment_description or "Event Registration Fee" }}',
+                        handler: function(response) {
+                            // Show processing state
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying payment...';
+                            
+                            // Verify payment on server
+                            fetch('/payment/verify', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_signature: response.razorpay_signature,
+                                    registration_data: result.registration_data,
+                                    registration_file: result.registration_file
+                                })
+                            }).then(res => res.json()).then(data => {
+                                if (data.success) {
+                                    // Update registration ID and QR code
+                                    if (data.registration_id) {
+                                        document.getElementById('displayRegistrationId').textContent = data.registration_id;
+                                    }
+                                    if (data.qr_code) {
+                                        document.getElementById('qrCodeImage').src = 'data:image/png;base64,' + data.qr_code;
+                                        document.getElementById('qrCodeContainer').style.display = 'block';
+                                    } else {
+                                        document.getElementById('qrCodeContainer').style.display = 'none';
+                                    }
+                                    // Update email status
+                                    const emailStatusEl = document.getElementById('emailStatus');
+                                    if (data.email_sent) {
+                                        emailStatusEl.innerHTML = '✅ Confirmation email has been sent to your inbox.';
+                                    } else {
+                                        emailStatusEl.innerHTML = '⚠️ Email could not be sent. Please save the QR code above.';
+                                    }
+                                    
+                                    // Show success message
+                                    successMsg.classList.remove('hidden');
+                                    successMsg.style.display = 'block';
+                                    errorMsg.classList.add('hidden');
+                                    errorMsg.style.display = 'none';
+                                    
+                                    registrationForm.reset();
+                                    successMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    
+                                    // Show browser notification
+                                    showNotification('Payment Successful! ✅', 'Your registration is confirmed.', 'success');
+                                    
+                                    // Don't reset isSubmitting - successful, form is done
+                                } else {
+                                    // Show error message
+                                    errorText.textContent = data.error || 'Payment verification failed';
+                                    errorMsg.classList.remove('hidden');
+                                    errorMsg.style.display = 'block';
+                                    successMsg.classList.add('hidden');
+                                    successMsg.style.display = 'none';
+                                    
+                                    errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    
+                                    // Show browser notification
+                                    showNotification('Payment Failed ❌', data.error || 'Payment verification failed', 'error');
+                                    
+                                    // Re-enable form for retry
+                                    isSubmitting = false;
+                                    submitBtn.disabled = false;
+                                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Registration';
+                                }
+                            }).catch(err => {
+                                errorText.textContent = 'Payment verification failed. Please contact support.';
+                                errorMsg.classList.remove('hidden');
+                                errorMsg.style.display = 'block';
+                                successMsg.classList.add('hidden');
+                                successMsg.style.display = 'none';
+                                
+                                errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                
+                                // Show browser notification
+                                showNotification('Error ❌', 'Payment verification failed. Please contact support.', 'error');
+                                
+                                // Re-enable form for retry
+                                isSubmitting = false;
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Registration';
+                            });
+                        },
+                        prefill: {
+                            name: data.name || data.team_leader_name || '',
+                            email: data.submitter_email || data.email || data.team_leader_email || '',
+                            contact: data.phone || data.team_leader_phone || ''
+                        },
+                        theme: { color: '#3b82f6' },
+                        modal: {
+                            ondismiss: function() {
+                                // Modal closed by user - re-enable form
+                                isSubmitting = false;
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Registration';
+                            }
+                        }
+                    };
+                    
+                    const rzp = new Razorpay(options);
+                    rzp.open();
+                } catch (error) {
+                    errorText.textContent = 'Error initializing payment. Please try again.';
+                    errorMsg.classList.remove('hidden');
+                    errorMsg.style.display = 'block';
+                    successMsg.classList.add('hidden');
+                    successMsg.style.display = 'none';
+                    
+                    errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // Show browser notification
+                    showNotification('Error ❌', 'Error initializing payment. Please try again.', 'error');
+                    
+                    // Re-enable form
+                    isSubmitting = false;
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Registration';
+                }
+            } else if (result.success === true) {
+                // No payment required - show success message
+                // Update registration ID and QR code
+                if (result.registration_id) {
+                    document.getElementById('displayRegistrationId').textContent = result.registration_id;
+                }
+                if (result.qr_code) {
+                    document.getElementById('qrCodeImage').src = 'data:image/png;base64,' + result.qr_code;
+                    document.getElementById('qrCodeContainer').style.display = 'block';
+                } else {
+                    document.getElementById('qrCodeContainer').style.display = 'none';
+                }
+                // Update email status
+                const emailStatusEl = document.getElementById('emailStatus');
+                if (result.email_sent) {
+                    emailStatusEl.innerHTML = '✅ Confirmation email has been sent to your inbox.';
+                } else {
+                    emailStatusEl.innerHTML = '⚠️ Email could not be sent. Please save the QR code above.';
+                }
+                
+                successMsg.classList.remove('hidden');
+                successMsg.style.display = 'block';
+                errorMsg.classList.add('hidden');
+                errorMsg.style.display = 'none';
+                
+                registrationForm.reset();
+                successMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Show browser notification
+                showNotification('Registration Successful! ✅', 'Your registration has been submitted.', 'success');
+            } else {
+                errorText.textContent = result.error || 'Unexpected response from server';
+                errorMsg.classList.remove('hidden');
+                errorMsg.style.display = 'block';
+                successMsg.classList.add('hidden');
+                successMsg.style.display = 'none';
+                
+                errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Show browser notification
+                showNotification('Error ❌', result.error || 'Unexpected response from server', 'error');
+            }
+        } else {
+            if (result.error) {
+                errorText.textContent = result.error + (result.missing ? `: ${result.missing.join(', ')}` : '');
+                if (result.details) {
+                    errorText.textContent += ` - ${result.details}`;
+                }
+            } else {
+                errorText.textContent = 'An error occurred. Please try again.';
+            }
+            errorMsg.classList.remove('hidden');
+            errorMsg.style.display = 'block';
+            successMsg.classList.add('hidden');
+            successMsg.style.display = 'none';
+            
+            errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Show browser notification
+            showNotification('Error ❌', errorText.textContent, 'error');
+            
+            // Re-enable form submission
+            isSubmitting = false;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Registration';
+        }
+    } catch (error) {
+        errorText.textContent = 'An error occurred. Please try again.';
+        errorMsg.classList.remove('hidden');
+        errorMsg.style.display = 'block';
+        successMsg.classList.add('hidden');
+        successMsg.style.display = 'none';
+        
+        errorMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Show browser notification
+        showNotification('Error ❌', 'An error occurred. Please try again.', 'error');
+        
+        // Re-enable form submission
+        isSubmitting = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Registration';
+    }
+});
+}
+
+// Field focus interactions
+document.querySelectorAll('.form-input').forEach(input => {
+    input.addEventListener('focus', () => input.closest('.form-group').classList.add('focused'));
+    input.addEventListener('blur', () => input.closest('.form-group').classList.remove('focused'));
+});
+</script>
+
+<style>
+.register-page {
+    background: radial-gradient(circle at top, #eef4ff 0%, #f8fafc 50%, #ffffff 100%);
+    min-height: 100vh;
+}
+
+.register-hero {
+    position: relative;
+    overflow: hidden;
+}
+
+.register-hero-bg {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, rgba(59,130,246,0.2), rgba(14,165,233,0.2));
+    filter: blur(6px);
+    transform: scale(1.05);
+}
+
+.register-hero-card {
+    position: relative;
+    background: rgba(255,255,255,0.92);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15);
+    backdrop-filter: blur(12px);
+}
+
+.hero-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.badge-pill {
+    background: #e2e8f0;
+    color: #0f172a;
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.hero-title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+}
+
+.hero-subtitle {
+    color: #475569;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+.deadline-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #fff7ed;
+    color: #9a3412;
+    border: 1px solid #fdba74;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+}
+
+.hero-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.meta-card {
+    background: #f8fafc;
+    border-radius: 14px;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+}
+
+.meta-card ul {
+    padding-left: 1rem;
+}
+
+.register-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 2rem;
+}
+
+.form-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 2rem;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+.form-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.progress-indicator {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.progress-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #cbd5f5;
+}
+
+.progress-dot.active {
+    background: #2563eb;
+}
+
+.form-group {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.form-group.focused {
+    border-color: #60a5fa;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.12);
+    background: #ffffff;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid #cbd5f5;
+    background: #ffffff;
+    font-size: 0.95rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.helper-text {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn-primary-lg {
+    background: linear-gradient(120deg, #2563eb, #38bdf8);
+    color: #ffffff;
+    padding: 0.85rem 2rem;
+    border-radius: 12px;
+    font-weight: 700;
+    border: none;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary-lg:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 28px rgba(37, 99, 235, 0.3);
+}
+
+.btn-ghost {
+    color: #2563eb;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: rgba(37, 99, 235, 0.08);
+}
+
+.alert {
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.alert-success {
+    background: #ecfdf3;
+    color: #15803d;
+    border: 1px solid #86efac;
+}
+
+.alert-error {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.hidden {
+    display: none;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    background: #f8fafc;
+    border-radius: 16px;
+    border: 1px dashed #cbd5f5;
+}
+
+.empty-state i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: #64748b;
+}
+
+.side-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.panel-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
+.panel-card h3 {
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+}
+
+.coordinator-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.coordinator-item {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.coordinator-item span {
+    display: block;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    background: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #334155;
+}
+
+.tips ul {
+    padding-left: 1.2rem;
+    color: #475569;
+}
+
+body[data-theme='dark'] .register-page {
+    background: radial-gradient(circle at top, #0f172a 0%, #0b1120 55%, #020617 100%);
+}
+
+body[data-theme='dark'] .register-hero-card {
+    background: rgba(15, 23, 42, 0.92);
+    box-shadow: 0 20px 60px rgba(2, 6, 23, 0.6);
+}
+
+body[data-theme='dark'] .badge-pill {
+    background: #1e293b;
+    color: #e2e8f0;
+}
+
+body[data-theme='dark'] .hero-title {
+    color: #f8fafc;
+}
+
+body[data-theme='dark'] .hero-subtitle {
+    color: #cbd5f5;
+}
+
+body[data-theme='dark'] .deadline-alert {
+    background: #1f2937;
+    color: #fbbf24;
+    border-color: #374151;
+}
+
+body[data-theme='dark'] .meta-card,
+body[data-theme='dark'] .form-card,
+body[data-theme='dark'] .panel-card {
+    background: #0f172a;
+    border-color: #1e293b;
+    color: #e2e8f0;
+    box-shadow: 0 20px 40px rgba(2, 6, 23, 0.45);
+}
+
+body[data-theme='dark'] .meta-card p,
+body[data-theme='dark'] .panel-card p,
+body[data-theme='dark'] .panel-card li,
+body[data-theme='dark'] .coordinator-item span,
+body[data-theme='dark'] .tips ul {
+    color: #cbd5f5;
+}
+
+body[data-theme='dark'] .form-group {
+    background: #0b1220;
+    border-color: #1e293b;
+}
+
+body[data-theme='dark'] .form-group.focused {
+    border-color: #60a5fa;
+    background: #0f172a;
+}
+
+body[data-theme='dark'] .form-label {
+    color: #e2e8f0;
+}
+
+body[data-theme='dark'] .form-input {
+    background: #0b1220;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body[data-theme='dark'] .form-input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+body[data-theme='dark'] .helper-text {
+    color: #94a3b8;
+}
+
+body[data-theme='dark'] .btn-ghost {
+    background: rgba(56, 189, 248, 0.12);
+    color: #e2e8f0;
+}
+
+body[data-theme='dark'] .empty-state {
+    background: #0b1220;
+    border-color: #1e293b;
+    color: #cbd5f5;
+}
+
+body[data-theme='dark'] .empty-state i {
+    color: #94a3b8;
+}
+
+@media (max-width: 1024px) {
+    .register-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+    .form-card {
+        padding: 1.5rem;
+    }
+}
+</style>
+{% endblock %}

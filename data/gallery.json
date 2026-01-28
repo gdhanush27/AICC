@@ -1,0 +1,58 @@
+[
+    {
+        "id": 1,
+        "title": "Hackathon Event",
+        "year": "2023-2024",
+        "image": "/static/img/life/23-24_1.webp",
+        "description": "Hackathon event from 2023-2024"
+    },
+    {
+        "id": 2,
+        "title": "Team Meetup",
+        "year": "2023-2024",
+        "image": "/static/img/life/23-24_2.webp",
+        "description": "Team meetup from 2023-2024"
+    },
+    {
+        "id": 3,
+        "title": "Club Celebration",
+        "year": "2024-2025",
+        "image": "/static/img/life/24-25_1.webp",
+        "description": "Club celebration from 2024-2025"
+    },
+    {
+        "id": 4,
+        "title": "Project Showcase",
+        "year": "2024-2025",
+        "image": "/static/img/life/24-25_2.webp",
+        "description": "Project showcase from 2024-2025"
+    },
+    {
+        "id": 5,
+        "title": "Casual Fun",
+        "year": "2024-2025",
+        "image": "/static/img/life/24-25_3.webp",
+        "description": "Casual fun from 2024-2025"
+    },
+    {
+        "id": 6,
+        "title": "AI Workshop",
+        "year": "2025-2026",
+        "image": "/static/img/life/25-26_1.webp",
+        "description": "AI workshop from 2025-2026"
+    },
+    {
+        "id": 7,
+        "title": "Hackathon Winners",
+        "year": "2025-2026",
+        "image": "/static/img/life/25-26_2.webp",
+        "description": "Hackathon winners from 2025-2026"
+    },
+    {
+        "id": 8,
+        "title": "Annual Meet",
+        "year": "2025-2026",
+        "image": "/static/img/life/25-26_3.webp",
+        "description": "Annual meet from 2025-2026"
+    }
+]

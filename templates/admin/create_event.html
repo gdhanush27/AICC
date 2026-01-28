@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Event - AICC Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="admin-dashboard">
+    <nav class="admin-nav">
+        <div class="nav-brand">
+            <i class="fas fa-shield-alt"></i>
+            AICC Admin Panel
+        </div>
+        <div class="nav-actions">
+            <button id="theme-toggle" class="btn-theme">
+                <i class="fas fa-sun"></i>
+            </button>
+            <a href="{{ url_for('admin_events') }}" class="btn-back">
+                <i class="fas fa-arrow-left"></i>
+                Back to Events
+            </a>
+            <a href="{{ url_for('admin_logout') }}" class="btn-logout">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </nav>
+    
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>Create New Event</h1>
+            <p>Add a new event to your club calendar</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-circle' }}"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="form-card">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name">Event Name</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" name="status" required>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="time">Time</label>
+                        <input type="text" id="time" name="time" placeholder="10:00 AM - 5:00 PM" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="location">Location</label>
+                    <input type="text" id="location" name="location" placeholder="SRM IST KTR Campus" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" rows="3" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="how">How It Works</label>
+                    <textarea id="how" name="how" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="rules">Rules (one per line)</label>
+                    <textarea id="rules" name="rules" rows="4" placeholder="Rule 1&#10;Rule 2&#10;Rule 3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="event_image">Event Image</label>
+                    <input type="file" id="event_image" name="event_image" accept="image/*" required>
+                    <small style="color: var(--admin-gray-light); display: block; margin-top: 5px;">
+                        Supported formats: JPG, PNG, GIF, WebP (Max 16MB)
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <h3 style="color: var(--admin-primary); margin-top: 20px; margin-bottom: 10px;">
+                        <i class="fas fa-user-plus"></i> Registration Settings
+                    </h3>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="registration_type">Registration Type</label>
+                        <select id="registration_type" name="registration_type" onchange="toggleRegistrationFields()">
+                            <option value="none">No Registration</option>
+                            <option value="external">External Link (Google Forms, etc.)</option>
+                            <option value="internal">Internal Form</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="external_link_field" class="form-group" style="display: none;">
+                    <label for="register_link">External Registration Link</label>
+                    <input type="url" id="register_link" name="register_link" placeholder="https://forms.google.com/your-form">
+                    <small>Provide the full URL to your external registration form</small>
+                </div>
+                
+                <div id="internal_form_field" class="form-group" style="display: none;">
+                    <label for="template_id">Registration Form Template</label>
+                    <select id="template_id" name="template_id">
+                        <option value="">-- Select a Template --</option>
+                        {% if forms %}
+                            {% for form in forms %}
+                            <option value="{{ form.id }}">{{ form.name }}{% if form.description %} - {{ form.description }}{% endif %}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                    <small>
+                        Choose a form template or 
+                        <a href="{{ url_for('admin_registration_forms') }}" target="_blank">create a new one</a>
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <h3 style="color: var(--admin-primary); margin-top: 20px; margin-bottom: 10px;">
+                        <i class="fas fa-clock"></i> Registration Deadline (Optional)
+                    </h3>
+                    <small style="color: var(--admin-gray-light); display: block; margin-bottom: 15px;">
+                        Leave empty if no registration deadline
+                    </small>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="deadline_date">Deadline Date</label>
+                        <input type="date" id="deadline_date" name="deadline_date">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="deadline_message">Deadline Message</label>
+                        <input type="text" id="deadline_message" name="deadline_message" placeholder="Register now! Limited spots available.">
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Create Event
+                    </button>
+                    <a href="{{ url_for('admin_events') }}" class="btn-secondary">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+    function toggleRegistrationFields() {
+        const regType = document.getElementById('registration_type').value;
+        const externalField = document.getElementById('external_link_field');
+        const internalField = document.getElementById('internal_form_field');
+        const registerLinkInput = document.getElementById('register_link');
+        const templateIdInput = document.getElementById('template_id');
+        
+        // Hide all fields and disable inputs
+        externalField.style.display = 'none';
+        internalField.style.display = 'none';
+        registerLinkInput.disabled = true;
+        templateIdInput.disabled = true;
+        
+        // Show and enable the appropriate field
+        if (regType === 'external') {
+            externalField.style.display = 'block';
+            registerLinkInput.disabled = false;
+        } else if (regType === 'internal') {
+            internalField.style.display = 'block';
+            templateIdInput.disabled = false;
+        }
+    }
+    
+    // Call on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleRegistrationFields();
+    });
+    </script>
+    
+    <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+</body>
+</html>

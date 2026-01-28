@@ -28,8 +28,12 @@
                     <span>{{ event.location }}</span>
                 </div>
             </div>
-            {% if event.register_link and event.status == 'upcoming' %}
-            <a href="{{ event.register_link }}" class="btn btn-primary btn-lg">Register Now <i class="fas fa-arrow-right"></i></a>
+            {% if event.status == 'upcoming' %}
+                {% if event.registration_type == 'external' %}
+                <a href="{{ event.register_link }}" target="_blank" class="btn btn-primary btn-lg">Register Now <i class="fas fa-external-link-alt"></i></a>
+                {% elif event.registration_type == 'internal' %}
+                <a href="/events/{{ event.id }}/register" class="btn btn-primary btn-lg">Register Now <i class="fas fa-arrow-right"></i></a>
+                {% endif %}
             {% endif %}
         </div>
     </div>
@@ -71,7 +75,7 @@
             <!-- Sidebar -->
             <div class="event-sidebar">
                 <!-- Registration Card -->
-                {% if event.register_link and event.status == 'upcoming' %}
+                {% if event.status == 'upcoming' %}
                 <div class="sidebar-card registration-card">
                     <h3>Register Now</h3>
                     {% if event.registration_deadline %}
@@ -84,7 +88,18 @@
                     </div>
                     <p class="deadline-message">{{ event.registration_deadline.message }}</p>
                     {% endif %}
-                    <a href="{{ event.register_link }}" class="btn btn-primary btn-block">Register Now</a>
+                    {% if event.registration_type == 'external' %}
+                    <a href="{{ event.register_link }}" target="_blank" class="btn btn-primary btn-block">
+                        Register via External Link <i class="fas fa-external-link-alt"></i>
+                    </a>
+                    <p class="text-sm text-gray-600 mt-2 text-center">
+                        <i class="fas fa-info-circle"></i> Opens in new tab
+                    </p>
+                    {% elif event.registration_type == 'internal' %}
+                    <a href="/events/{{ event.id }}/register" class="btn btn-primary btn-block">
+                        Register Now <i class="fas fa-arrow-right"></i>
+                    </a>
+                    {% endif %}
                 </div>
                 {% endif %}
 

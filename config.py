@@ -24,9 +24,19 @@ def load_json(filename):
         print(f"Error parsing {filename}: {e}")
         return {} if 'info' in filename else []
 
+# Email validation settings
+ALLOWED_EMAIL_DOMAINS = [
+    'kongu.edu',
+    'kongu.ac.in',
+    'gmail.com'
+]
+
+# Razorpay Payment Gateway Configuration
+KEY_ID_RAZOR = "rzp_test_S9K6cEXINpcvhY" 
+KEY_SECRET_RAZOR = "AYkLCQKCY4w18n8OUE2dwn5Y"
+
 # Load all data from JSON files
 CLUB_INFO = load_json('club_info.json')
-CONTACT_INFO = load_json('contact_info.json')
 EVENTS = load_json('events.json')
 MEMBERS = load_json('members.json')
 GALLERY = load_json('gallery.json')

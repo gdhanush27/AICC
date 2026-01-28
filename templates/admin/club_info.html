@@ -87,6 +87,102 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Member Roles <small>(in hierarchy order - drag to reorder)</small></label>
+                    <div id="rolesContainer" class="dynamic-list-container">
+                        {% for role in club_info.get('member_roles', []) %}
+                        <div class="list-item" draggable="true">
+                            <i class="fas fa-grip-vertical drag-handle"></i>
+                            <input type="text" value="{{ role }}" class="list-item-input" />
+                            <button type="button" class="btn-remove-item" onclick="removeItem(this)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn-add-item" onclick="addRole()">
+                        <i class="fas fa-plus"></i> Add Role
+                    </button>
+                    <input type="hidden" id="member_roles_json" name="member_roles_json" />
+                </div>
+                
+                <div class="form-group">
+                    <label>Member Years</label>
+                    <div id="yearsContainer" class="dynamic-list-container">
+                        {% for year in club_info.get('member_years', []) %}
+                        <div class="list-item">
+                            <input type="text" value="{{ year }}" class="list-item-input" />
+                            <button type="button" class="btn-remove-item" onclick="removeItem(this)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn-add-item" onclick="addYear()">
+                        <i class="fas fa-plus"></i> Add Year
+                    </button>
+                    <input type="hidden" id="member_years_json" name="member_years_json" />
+                </div>
+                
+                <div class="form-group">
+                    <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--text-primary);">
+                        <i class="fas fa-envelope"></i> Email Configuration (SMTP)
+                    </h3>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mail_server">Mail Server</label>
+                        <input type="text" id="mail_server" name="mail_server" 
+                               value="{{ club_info.get('email_config', {}).get('MAIL_SERVER', 'smtp.gmail.com') }}" 
+                               placeholder="smtp.gmail.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="mail_port">Mail Port</label>
+                        <input type="number" id="mail_port" name="mail_port" 
+                               value="{{ club_info.get('email_config', {}).get('MAIL_PORT', 587) }}" 
+                               placeholder="587">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="mail_use_tls" value="true" class="styled-checkbox"
+                               {% if club_info.get('email_config', {}).get('MAIL_USE_TLS', true) %}checked{% endif %}>
+                        <span class="checkbox-text">
+                            <strong>Use TLS (Transport Layer Security)</strong>
+                            <small>Recommended for secure email transmission</small>
+                        </span>
+                    </label>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="mail_username">Mail Username</label>
+                        <input type="text" id="mail_username" name="mail_username" 
+                               value="{{ club_info.get('email_config', {}).get('MAIL_USERNAME', '') }}" 
+                               placeholder="your-email@gmail.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="mail_password">Mail Password</label>
+                        <input type="password" id="mail_password" name="mail_password" 
+                               value="{{ club_info.get('email_config', {}).get('MAIL_PASSWORD', '') }}" 
+                               placeholder="App password or email password">
+                        <small style="color: var(--admin-gray-light); display: block; margin-top: 5px;">
+                            For Gmail, use an App Password instead of your account password
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="mail_default_sender">Default Sender Email</label>
+                    <input type="email" id="mail_default_sender" name="mail_default_sender" 
+                           value="{{ club_info.get('email_config', {}).get('MAIL_DEFAULT_SENDER', '') }}" 
+                           placeholder="your-email@gmail.com">
+                </div>
+                
+                <div class="form-group">
                     <label for="logo_image">Upload Logo</label>
                     <input type="file" id="logo_image" name="logo_image" accept="image/*">
                     <small style="color: var(--admin-gray-light); display: block; margin-top: 5px;">
@@ -108,6 +204,217 @@
             </form>
         </div>
     </div>
+    
+    <style>
+        .dynamic-list-container {
+            margin-bottom: 10px;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: var(--card-bg, #f8fafc);
+            border: 1px solid var(--border-color, #e2e8f0);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .list-item:hover {
+            background: var(--hover-bg, #f1f5f9);
+        }
+        .list-item.dragging {
+            opacity: 0.5;
+        }
+        .drag-handle {
+            cursor: grab;
+            color: var(--text-secondary, #64748b);
+            padding: 4px;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .list-item-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color, #e2e8f0);
+            border-radius: 6px;
+            background: var(--input-bg, white);
+            color: var(--text-primary, #0f172a);
+            font-size: 14px;
+        }
+        .list-item-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .btn-remove-item {
+            padding: 6px 10px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-remove-item:hover {
+            background: #dc2626;
+            transform: scale(1.05);
+        }
+        .btn-add-item {
+            padding: 10px 16px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-add-item:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+        body[data-theme=dark] .list-item {
+            background: #0b1120;
+            border-color: #1e293b;
+        }
+        body[data-theme=dark] .list-item:hover {
+            background: #162033;
+        }
+        body[data-theme=dark] .list-item-input {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-color: #1e293b;
+        }
+    </style>
+    
+    <script>
+        // Add new role
+        function addRole() {
+            const container = document.getElementById('rolesContainer');
+            const newItem = document.createElement('div');
+            newItem.className = 'list-item';
+            newItem.draggable = true;
+            newItem.innerHTML = `
+                <i class="fas fa-grip-vertical drag-handle"></i>
+                <input type="text" value="" class="list-item-input" placeholder="Enter role name" />
+                <button type="button" class="btn-remove-item" onclick="removeItem(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(newItem);
+            setupDragAndDrop();
+        }
+        
+        // Add new year
+        function addYear() {
+            const container = document.getElementById('yearsContainer');
+            const newItem = document.createElement('div');
+            newItem.className = 'list-item';
+            newItem.innerHTML = `
+                <input type="text" value="" class="list-item-input" placeholder="Enter year (e.g., 3rd Year)" />
+                <button type="button" class="btn-remove-item" onclick="removeItem(this)">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(newItem);
+        }
+        
+        // Remove item
+        function removeItem(button) {
+            button.closest('.list-item').remove();
+        }
+        
+        // Setup drag and drop for roles
+        function setupDragAndDrop() {
+            const items = document.querySelectorAll('#rolesContainer .list-item');
+            items.forEach(item => {
+                item.removeEventListener('dragstart', handleDragStart);
+                item.removeEventListener('dragover', handleDragOver);
+                item.removeEventListener('drop', handleDrop);
+                item.removeEventListener('dragend', handleDragEnd);
+                
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('drop', handleDrop);
+                item.addEventListener('dragend', handleDragEnd);
+            });
+        }
+        
+        let draggedElement = null;
+        
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            
+            const afterElement = getDragAfterElement(document.getElementById('rolesContainer'), e.clientY);
+            if (afterElement == null) {
+                document.getElementById('rolesContainer').appendChild(draggedElement);
+            } else {
+                document.getElementById('rolesContainer').insertBefore(draggedElement, afterElement);
+            }
+            return false;
+        }
+        
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            return false;
+        }
+        
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+        }
+        
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.list-item:not(.dragging)')];
+            
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+        
+        // Collect data before form submission
+        document.querySelector('form').addEventListener('submit', function(e) {
+            // Collect roles
+            const roleInputs = document.querySelectorAll('#rolesContainer .list-item-input');
+            const roles = Array.from(roleInputs)
+                .map(input => input.value.trim())
+                .filter(value => value !== '');
+            document.getElementById('member_roles_json').value = JSON.stringify(roles);
+            
+            // Collect years
+            const yearInputs = document.querySelectorAll('#yearsContainer .list-item-input');
+            const years = Array.from(yearInputs)
+                .map(input => input.value.trim())
+                .filter(value => value !== '');
+            document.getElementById('member_years_json').value = JSON.stringify(years);
+        });
+        
+        // Initialize drag and drop on page load
+        setupDragAndDrop();
+    </script>
     
     <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
 </body>
