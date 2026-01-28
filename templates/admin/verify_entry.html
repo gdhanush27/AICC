@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Entry - {{ event.name }}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #1f2937;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header .event-name {
+            color: #667eea;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+        
+        .status-badge.entered {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .status-badge.not-entered {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .info-section {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        
+        .info-value {
+            color: #1f2937;
+            font-weight: 500;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .alert {
+            padding: 16px;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .alert-success {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .icon-large {
+            font-size: 48px;
+            margin: 20px 0;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <i class="fas fa-qrcode icon-large" style="color: #667eea;"></i>
+                <h1>Entry Verification</h1>
+                <div class="event-name">{{ event.name }}</div>
+            </div>
+            
+            {% if already_entered %}
+                <div class="text-center">
+                    <div class="status-badge entered">
+                        <i class="fas fa-check-circle"></i> Already Entered
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div>
+                            <strong>This participant has already been marked as entered.</strong>
+                            <br>Entry cannot be marked multiple times.
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="text-center">
+                    <div class="status-badge not-entered">
+                        <i class="fas fa-clock"></i> Pending Entry
+                    </div>
+                </div>
+            {% endif %}
+            
+            <div class="info-section">
+                <h3 style="margin-bottom: 16px; color: #1f2937;">Participant Details</h3>
+                
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span class="info-value">{{ registration.name or registration.team_leader_name or 'N/A' }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span class="info-value">{{ registration.submitter_email }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Registration ID:</span>
+                    <span class="info-value" style="font-family: monospace; font-size: 12px;">{{ registration.registration_id }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Registration Time:</span>
+                    <span class="info-value">{{ registration.timestamp }}</span>
+                </div>
+                
+                {% if registration.payment_status and registration.payment_status != 'not_required' %}
+                <div class="info-row">
+                    <span class="info-label">Payment Status:</span>
+                    <span class="info-value">{{ registration.payment_status }}</span>
+                </div>
+                {% endif %}
+                
+                {% if already_entered %}
+                <div class="info-row">
+                    <span class="info-label">Entry Time:</span>
+                    <span class="info-value">{{ registration.entry_time }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Marked By:</span>
+                    <span class="info-value">{{ registration.marked_by }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div id="successMessage" class="alert alert-success hidden">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                    <strong>Entry Marked Successfully!</strong><br>
+                    The participant has been checked in.
+                </div>
+            </div>
+            
+            <div id="errorMessage" class="alert alert-warning hidden">
+                <i class="fas fa-exclamation-circle"></i>
+                <div id="errorText">An error occurred.</div>
+            </div>
+            
+            {% if not already_entered %}
+            <button id="markEntryBtn" class="btn btn-primary">
+                <i class="fas fa-check"></i> Mark as Entered
+            </button>
+            {% endif %}
+            
+            <button onclick="window.location.href='/admin/events/{{ event.id }}/registrations'" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Registrations
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const markEntryBtn = document.getElementById('markEntryBtn');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        
+        if (markEntryBtn) {
+            markEntryBtn.addEventListener('click', async function() {
+                markEntryBtn.disabled = true;
+                markEntryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking Entry...';
+                
+                try {
+                    const response = await fetch('/admin/mark-entry', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: new URLSearchParams({
+                            'regid': '{{ registration.registration_id }}',
+                            'email': '{{ registration.submitter_email }}',
+                            'event_id': '{{ event.id }}'
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok && result.success) {
+                        successMessage.classList.remove('hidden');
+                        errorMessage.classList.add('hidden');
+                        markEntryBtn.style.display = 'none';
+                        
+                        // Redirect after 2 seconds
+                        setTimeout(() => {
+                            window.location.href = '/admin/events/{{ event.id }}/registrations';
+                        }, 2000);
+                    } else {
+                        errorText.textContent = result.error || 'Failed to mark entry';
+                        errorMessage.classList.remove('hidden');
+                        markEntryBtn.disabled = false;
+                        markEntryBtn.innerHTML = '<i class="fas fa-check"></i> Mark as Entered';
+                    }
+                } catch (error) {
+                    errorText.textContent = 'Network error. Please try again.';
+                    errorMessage.classList.remove('hidden');
+                    markEntryBtn.disabled = false;
+                    markEntryBtn.innerHTML = '<i class="fas fa-check"></i> Mark as Entered';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -54,7 +54,11 @@
             </div>
             <p class="deadline-message">{{ next_deadline_event.registration_deadline.message }}</p>
             <p class="deadline-date">Registration closes: {{ next_deadline_event.registration_deadline.date }}</p>
+            {% if next_deadline_event.registration_type == 'external' and next_deadline_event.register_link %}
             <a href="{{ next_deadline_event.register_link }}" class="btn btn-primary">REGISTER NOW</a>
+            {% elif next_deadline_event.registration_type == 'internal' %}
+            <a href="/events/{{ next_deadline_event.id }}/register" class="btn btn-primary">REGISTER NOW</a>
+            {% endif %}
         </div>
     </div>
 </section>
@@ -92,8 +96,12 @@
                         <span><i class="fas fa-map-marker-alt"></i> {{ event.location }}</span>
                     </div>
                     <p class="event-description">{{ event.description }}</p>
-                    {% if event.register_link and event.status == 'upcoming' %}
-                    <a href="{{ event.register_link }}" class="btn btn-primary btn-sm">Register Now</a>
+                    {% if event.status == 'upcoming' %}
+                        {% if event.registration_type == 'external' and event.register_link %}
+                        <a href="{{ event.register_link }}" class="btn btn-primary btn-sm">Register Now</a>
+                        {% elif event.registration_type == 'internal' %}
+                        <a href="/events/{{ event.id }}/register" class="btn btn-primary btn-sm">Register Now</a>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>

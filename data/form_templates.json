@@ -1,0 +1,45 @@
+[
+    {
+        "id": 1,
+        "name": "solo event",
+        "description": "For solo event",
+        "fields": [
+            {
+                "name": "email",
+                "label": "Email Address",
+                "type": "email",
+                "required": true,
+                "placeholder": ""
+            }
+        ],
+        "active": true,
+        "payment_enabled": false,
+        "payment_amount": 0,
+        "payment_description": ""
+    },
+    {
+        "id": 2,
+        "name": "test payment",
+        "description": "",
+        "fields": [
+            {
+                "name": "email",
+                "label": "email",
+                "type": "email",
+                "required": true,
+                "placeholder": "email"
+            },
+            {
+                "name": "phone",
+                "label": "Phone Number",
+                "type": "tel",
+                "required": true,
+                "placeholder": "9999999999"
+            }
+        ],
+        "active": true,
+        "payment_enabled": true,
+        "payment_amount": 10,
+        "payment_description": "Test payment for registration"
+    }
+]

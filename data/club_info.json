@@ -1,0 +1,63 @@
+{
+    "name": "AI Coding Club",
+    "short_name": "AICC",
+    "tagline": "Learn, Build, Innovate...",
+    "description": "AI Coding Club (AICC) is dedicated to empowering students to learn, build, and innovate in the fields of Artificial Intelligence and software development. We provide hands on learning opportunities through workshops, hackathons, and collaborative projects. Our goal is to help students gain real world experience by working on practical problems. We encourage teamwork, creativity, and continuous learning. AICC empowers growth and innovation.",
+    "college": "Kongu Engineering College",
+    "department": "Department of AI",
+    "address": "Department of AI, Kongu Engineering College, Perundurai, Erode - 638060",
+    "logo": "/static/uploads/20260127_130700_aicc-logo.webp",
+    "member_roles": [
+        "President",
+        "Vice President",
+        "Secretary",
+        "Additional Secretary",
+        "Joint Secretary",
+        "Treasurer",
+        "Technical Head",
+        "Event Coordinator",
+        "Content Head",
+        "Design Head",
+        "Social Media Manager",
+        "Core Member",
+        "Member"
+    ],
+    "member_years": [
+        "1st Year",
+        "2nd Year",
+        "3rd Year",
+        "4th Year",
+        "Alumni"
+    ],
+    "email": "kecaicodingclub@gmail.com",
+    "linkedin": "https://linkedin.com/company/kec-ai-coding-club/",
+    "instagram": "https://www.instagram.com/kec_aicc",
+    "email_config": {
+        "MAIL_SERVER": "smtp.gmail.com",
+        "MAIL_PORT": 587,
+        "MAIL_USE_TLS": true,
+        "MAIL_USERNAME": "filesharepro.help@gmail.com",
+        "MAIL_PASSWORD": "tsva rfza nljn mnva",
+        "MAIL_DEFAULT_SENDER": "filesharepro.help@gmail.com"
+    },
+    "faculty_coordinators": [
+        {
+            "name": "Dr.K Logeswaran",
+            "phone": "+91 96985 13850"
+        },
+        {
+            "name": "Ms Balasanthi",
+            "phone": "+91 93448 60238"
+        }
+    ],
+    "secretaries": [
+        {
+            "name": "Sanjai R",
+            "phone": "+91 99422 35410"
+        },
+        {
+            "name": "Rashmika K R",
+            "phone": "+91 76676 90991"
+        }
+    ]
+}

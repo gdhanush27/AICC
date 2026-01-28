@@ -406,6 +406,14 @@ body.admin-dashboard {
 
 .admin-header {
     margin-bottom: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+}
+
+.admin-header > div {
+    flex: 1;
 }
 
 .admin-header h1 {
@@ -420,6 +428,10 @@ body.admin-dashboard {
 .admin-header p {
     color: var(--admin-gray-light);
     font-size: 1.1rem;
+}
+
+.admin-header .btn {
+    white-space: nowrap;
 }
 
 /* ========================================
@@ -685,6 +697,26 @@ body.admin-dashboard {
 
 .btn-edit:hover {
     background: var(--admin-primary);
+    color: #fff;
+}
+
+.btn-view {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.3s ease;
+    margin-right: 5px;
+}
+
+.btn-view:hover {
+    background: #10b981;
     color: #fff;
 }
 
