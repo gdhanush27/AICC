@@ -2236,6 +2236,17 @@ def admin_export_registrations(event_id):
         download_name=filename
     )
 
+# ========================================
+# Error Handlers
+# ========================================
+
+@app.errorhandler(404)
+def page_not_found(e):
+    """Custom 404 error page"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return render_template('404.html', club_info=CLUB_INFO, contact=CLUB_INFO), 404
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 

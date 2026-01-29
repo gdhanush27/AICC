@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}404 - Page Not Found | {{ club_info.short_name }}{% endblock %}
+
+{% block content %}
+<style>
+    .error-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .error-content {
+        text-align: center;
+        color: white;
+        z-index: 10;
+        max-width: 600px;
+    }
+
+    .error-code {
+        font-size: 10rem;
+        font-weight: 900;
+        margin: 0;
+        line-height: 1;
+        animation: glitch 1s linear infinite;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+
+    @keyframes glitch {
+        2%, 64% {
+            transform: translate(2px, 0) skew(0deg);
+        }
+        4%, 60% {
+            transform: translate(-2px, 0) skew(0deg);
+        }
+        62% {
+            transform: translate(0, 0) skew(5deg);
+        }
+    }
+
+    .error-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin: 1rem 0;
+        animation: fadeInUp 0.6s ease-out 0.2s both;
+    }
+
+    .error-message {
+        font-size: 1.2rem;
+        margin: 1.5rem 0;
+        opacity: 0.9;
+        animation: fadeInUp 0.6s ease-out 0.4s both;
+    }
+
+    .error-buttons {
+        margin-top: 2rem;
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        animation: fadeInUp 0.6s ease-out 0.6s both;
+    }
+
+    .btn-home {
+        background: white;
+        color: #667eea;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-home:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        color: #667eea;
+    }
+
+    .btn-back {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 50px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        border: 2px solid white;
+    }
+
+    .btn-back:hover {
+        background: rgba(255, 255, 255, 0.3);
+        transform: translateY(-3px);
+        color: white;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Floating astronaut animation */
+    .astronaut {
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        animation: float 6s ease-in-out infinite;
+        opacity: 0.3;
+    }
+
+    .astronaut:nth-child(1) {
+        top: 10%;
+        left: 10%;
+        animation-delay: 0s;
+    }
+
+    .astronaut:nth-child(2) {
+        top: 60%;
+        right: 15%;
+        animation-delay: 2s;
+    }
+
+    .astronaut:nth-child(3) {
+        bottom: 15%;
+        left: 20%;
+        animation-delay: 4s;
+    }
+
+    @keyframes float {
+        0%, 100% {
+            transform: translateY(0) rotate(0deg);
+        }
+        50% {
+            transform: translateY(-30px) rotate(10deg);
+        }
+    }
+
+    /* Geometric shapes background */
+    .shape {
+        position: absolute;
+        opacity: 0.1;
+        animation: rotate 20s linear infinite;
+    }
+
+    .shape-1 {
+        width: 100px;
+        height: 100px;
+        border: 3px solid white;
+        top: 20%;
+        right: 20%;
+        animation-delay: 0s;
+    }
+
+    .shape-2 {
+        width: 60px;
+        height: 60px;
+        border: 3px solid white;
+        border-radius: 50%;
+        bottom: 30%;
+        left: 15%;
+        animation-delay: 5s;
+    }
+
+    .shape-3 {
+        width: 80px;
+        height: 80px;
+        border: 3px solid white;
+        top: 50%;
+        left: 5%;
+        animation-delay: 10s;
+        clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    }
+
+    @keyframes rotate {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    /* Stars */
+    .stars {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .star {
+        position: absolute;
+        width: 2px;
+        height: 2px;
+        background: white;
+        border-radius: 50%;
+        animation: twinkle 3s ease-in-out infinite;
+    }
+
+    @keyframes twinkle {
+        0%, 100% {
+            opacity: 0.3;
+        }
+        50% {
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .error-code {
+            font-size: 6rem;
+        }
+        
+        .error-title {
+            font-size: 1.8rem;
+        }
+        
+        .error-message {
+            font-size: 1rem;
+        }
+        
+        .astronaut {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .error-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="error-container">
+    <!-- Stars background -->
+    <div class="stars">
+        <div class="star" style="top: 10%; left: 20%; animation-delay: 0s;"></div>
+        <div class="star" style="top: 20%; left: 80%; animation-delay: 1s;"></div>
+        <div class="star" style="top: 40%; left: 10%; animation-delay: 2s;"></div>
+        <div class="star" style="top: 60%; left: 70%; animation-delay: 0.5s;"></div>
+        <div class="star" style="top: 80%; left: 30%; animation-delay: 1.5s;"></div>
+        <div class="star" style="top: 30%; left: 50%; animation-delay: 2.5s;"></div>
+        <div class="star" style="top: 70%; left: 90%; animation-delay: 0.8s;"></div>
+        <div class="star" style="top: 50%; left: 40%; animation-delay: 1.2s;"></div>
+    </div>
+
+    <!-- Geometric shapes -->
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+    <div class="shape shape-3"></div>
+
+    <!-- Floating elements -->
+    <div class="astronaut">🚀</div>
+    <div class="astronaut">🛸</div>
+    <div class="astronaut">⭐</div>
+
+    <!-- Main content -->
+    <div class="error-content">
+        <h1 class="error-code">404</h1>
+        <h2 class="error-title">Page Not Found</h2>
+        <p class="error-message">
+            Oops! Looks like you've ventured into uncharted territory. 
+            The page you're looking for doesn't exist or has been moved.
+        </p>
+        <div class="error-buttons">
+            <a href="{{ url_for('home') }}" class="btn-home">
+                <i class="fas fa-home"></i> Go Home
+            </a>
+            <a href="javascript:history.back()" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Go Back
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
