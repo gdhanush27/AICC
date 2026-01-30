@@ -70,6 +70,11 @@
             color: #92400e;
         }
         
+        .status-badge.partial {
+            background: #fed7aa;
+            color: #92400e;
+        }
+        
         .info-section {
             background: #f9fafb;
             border-radius: 12px;
@@ -170,6 +175,185 @@
         .hidden {
             display: none;
         }
+        
+        .attendance-options {
+            margin: 20px 0;
+        }
+        
+        .radio-group {
+            margin: 15px 0;
+        }
+        
+        .radio-option {
+            display: block;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .radio-option:hover {
+            border-color: #667eea;
+            background: #f9fafb;
+        }
+        
+        .radio-option input[type="radio"] {
+            margin-right: 10px;
+        }
+        
+        .radio-option.selected {
+            border-color: #667eea;
+            background: #ede9fe;
+        }
+        
+        .comment-section {
+            margin-top: 15px;
+        }
+        
+        .comment-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        .comment-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        /* Participant checkbox styles */
+        .participants-section {
+            margin: 20px 0;
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .participant-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            margin: 8px 0;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .participant-item:hover {
+            border-color: #667eea;
+        }
+        
+        .participant-item.checked {
+            border-color: #22c55e;
+            background: #f0fdf4;
+        }
+        
+        .participant-checkbox {
+            width: 22px;
+            height: 22px;
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: #22c55e;
+        }
+        
+        .participant-info {
+            flex: 1;
+        }
+        
+        .participant-name {
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 15px;
+        }
+        
+        .participant-details {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 3px;
+        }
+        
+        .participant-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .participant-status.present {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .participant-status.absent {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .select-all-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .select-all-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .select-all-btn.select {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        
+        .select-all-btn.deselect {
+            background: #fee2e2;
+            color: #dc2626;
+            margin-left: 8px;
+        }
+        
+        .select-all-btn:hover {
+            transform: scale(1.02);
+        }
+        
+        .attendance-summary {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .summary-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .summary-item.present {
+            color: #15803d;
+        }
+        
+        .summary-item.absent {
+            color: #dc2626;
+        }
     </style>
 </head>
 <body>
@@ -181,17 +365,23 @@
                 <div class="event-name">{{ event.name }}</div>
             </div>
             
-            {% if already_entered %}
+            {% if already_marked %}
                 <div class="text-center">
-                    <div class="status-badge entered">
-                        <i class="fas fa-check-circle"></i> Already Entered
-                    </div>
+                    {% if attendance_status == 'entered' %}
+                        <div class="status-badge entered">
+                            <i class="fas fa-check-circle"></i> Fully Present
+                        </div>
+                    {% elif attendance_status == 'partially_present' %}
+                        <div class="status-badge partial">
+                            <i class="fas fa-minus-circle"></i> Partially Present
+                        </div>
+                    {% endif %}
                     
                     <div class="alert alert-warning">
                         <i class="fas fa-exclamation-triangle"></i>
                         <div>
-                            <strong>This participant has already been marked as entered.</strong>
-                            <br>Entry cannot be marked multiple times.
+                            <strong>This participant has already been marked.</strong>
+                            <br>You can update their attendance status if needed.
                         </div>
                     </div>
                 </div>
@@ -233,7 +423,7 @@
                 </div>
                 {% endif %}
                 
-                {% if already_entered %}
+                {% if already_marked %}
                 <div class="info-row">
                     <span class="info-label">Entry Time:</span>
                     <span class="info-value">{{ registration.entry_time }}</span>
@@ -243,8 +433,77 @@
                     <span class="info-label">Marked By:</span>
                     <span class="info-value">{{ registration.marked_by }}</span>
                 </div>
+                
+                {% if registration.attendance_comment %}
+                <div class="info-row">
+                    <span class="info-label">Comment:</span>
+                    <span class="info-value">{{ registration.attendance_comment }}</span>
+                </div>
+                {% endif %}
                 {% endif %}
             </div>
+            
+            <!-- Participants Section with Checkboxes -->
+            {% if registration.participants and registration.participants|length > 0 %}
+            <div class="participants-section">
+                <h3 style="margin-bottom: 16px; color: #1f2937;">
+                    <i class="fas fa-users"></i> Mark Participant Attendance
+                </h3>
+                
+                <div class="select-all-container">
+                    <span style="color: #6b7280; font-size: 14px;">
+                        Select participants who are present
+                    </span>
+                    <div>
+                        <button type="button" class="select-all-btn select" onclick="selectAllParticipants()">
+                            <i class="fas fa-check-double"></i> Select All
+                        </button>
+                        <button type="button" class="select-all-btn deselect" onclick="deselectAllParticipants()">
+                            <i class="fas fa-times"></i> Deselect All
+                        </button>
+                    </div>
+                </div>
+                
+                {% for participant in registration.participants %}
+                {% set participant_attendance = registration.participant_attendance[loop.index0] if registration.participant_attendance else None %}
+                <div class="participant-item {% if participant_attendance == true %}checked{% endif %}" id="participant-item-{{ loop.index0 }}">
+                    <input type="checkbox" 
+                           class="participant-checkbox" 
+                           id="participant_{{ loop.index0 }}" 
+                           name="participant_attendance" 
+                           value="{{ loop.index0 }}"
+                           {% if participant_attendance == true %}checked{% endif %}
+                           onchange="updateParticipantStyle({{ loop.index0 }})">
+                    <div class="participant-info">
+                        <div class="participant-name">{{ participant.name }}</div>
+                        <div class="participant-details">
+                            Roll: {{ participant.roll_no }} | Email: {{ participant.email }}
+                        </div>
+                    </div>
+                    <span class="participant-status {% if participant_attendance == true %}present{% elif participant_attendance == false %}absent{% endif %}" id="status-{{ loop.index0 }}">
+                        {% if participant_attendance == true %}
+                            Present
+                        {% elif participant_attendance == false %}
+                            Absent
+                        {% else %}
+                            Pending
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+                
+                <div class="attendance-summary">
+                    <div class="summary-item present">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Present: <strong id="presentCount">0</strong></span>
+                    </div>
+                    <div class="summary-item absent">
+                        <i class="fas fa-times-circle"></i>
+                        <span>Absent: <strong id="absentCount">{{ registration.participants|length }}</strong></span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             
             <div id="successMessage" class="alert alert-success hidden">
                 <i class="fas fa-check-circle"></i>
@@ -259,11 +518,42 @@
                 <div id="errorText">An error occurred.</div>
             </div>
             
-            {% if not already_entered %}
-            <button id="markEntryBtn" class="btn btn-primary">
-                <i class="fas fa-check"></i> Mark as Entered
-            </button>
+            <!-- Attendance Marking Form - Only show radio options if no participants array -->
+            {% if not registration.participants or registration.participants|length == 0 %}
+            <div class="attendance-options">
+                <h3 style="margin-bottom: 16px; color: #1f2937;">Mark Attendance</h3>
+                
+                <div class="radio-group">
+                    <label class="radio-option" id="fullOption">
+                        <input type="radio" name="attendance_type" value="full" checked>
+                        <strong><i class="fas fa-check-circle"></i> Fully Present</strong>
+                        <div style="font-size: 14px; color: #6b7280; margin-left: 28px; margin-top: 5px;">
+                            Participant attended the entire event
+                        </div>
+                    </label>
+                    
+                    <label class="radio-option" id="partialOption">
+                        <input type="radio" name="attendance_type" value="partial">
+                        <strong><i class="fas fa-minus-circle"></i> Partially Present</strong>
+                        <div style="font-size: 14px; color: #6b7280; margin-left: 28px; margin-top: 5px;">
+                            Participant attended only part of the event
+                        </div>
+                    </label>
+                </div>
+                
+                <div class="comment-section" id="commentSection" style="display: none;">
+                    <label for="attendance_comment" style="display: block; margin-bottom: 8px; font-weight: 600; color: #1f2937;">
+                        <i class="fas fa-comment"></i> Comment (Optional for partial attendance)
+                    </label>
+                    <textarea id="attendance_comment" name="attendance_comment" 
+                              placeholder="Add notes about partial attendance (e.g., 'Left early', 'Arrived late')"></textarea>
+                </div>
+            </div>
             {% endif %}
+            
+            <button id="markEntryBtn" class="btn btn-primary">
+                <i class="fas fa-check"></i> Mark Attendance
+            </button>
             
             <button onclick="window.location.href='/admin/events/{{ event.id }}/registrations'" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Registrations
@@ -276,11 +566,126 @@
         const successMessage = document.getElementById('successMessage');
         const errorMessage = document.getElementById('errorMessage');
         const errorText = document.getElementById('errorText');
+        const commentSection = document.getElementById('commentSection');
+        const fullOption = document.getElementById('fullOption');
+        const partialOption = document.getElementById('partialOption');
+        
+        // Check if we have participants (team-based attendance)
+        const hasParticipants = {{ 'true' if registration.participants and registration.participants|length > 0 else 'false' }};
+        const totalParticipants = {{ registration.participants|length if registration.participants else 0 }};
+        
+        // Participant attendance functions
+        function updateParticipantStyle(index) {
+            const checkbox = document.getElementById('participant_' + index);
+            const item = document.getElementById('participant-item-' + index);
+            const status = document.getElementById('status-' + index);
+            
+            if (checkbox.checked) {
+                item.classList.add('checked');
+                status.textContent = 'Present';
+                status.className = 'participant-status present';
+            } else {
+                item.classList.remove('checked');
+                status.textContent = 'Absent';
+                status.className = 'participant-status absent';
+            }
+            
+            updateCounts();
+        }
+        
+        function selectAllParticipants() {
+            for (let i = 0; i < totalParticipants; i++) {
+                const checkbox = document.getElementById('participant_' + i);
+                if (checkbox) {
+                    checkbox.checked = true;
+                    updateParticipantStyle(i);
+                }
+            }
+        }
+        
+        function deselectAllParticipants() {
+            for (let i = 0; i < totalParticipants; i++) {
+                const checkbox = document.getElementById('participant_' + i);
+                if (checkbox) {
+                    checkbox.checked = false;
+                    updateParticipantStyle(i);
+                }
+            }
+        }
+        
+        function updateCounts() {
+            let presentCount = 0;
+            for (let i = 0; i < totalParticipants; i++) {
+                const checkbox = document.getElementById('participant_' + i);
+                if (checkbox && checkbox.checked) {
+                    presentCount++;
+                }
+            }
+            
+            const presentEl = document.getElementById('presentCount');
+            const absentEl = document.getElementById('absentCount');
+            
+            if (presentEl) presentEl.textContent = presentCount;
+            if (absentEl) absentEl.textContent = totalParticipants - presentCount;
+        }
+        
+        // Initialize counts on page load
+        if (hasParticipants) {
+            updateCounts();
+        }
+        
+        // Radio button selection styling (for non-participant mode)
+        if (!hasParticipants) {
+            const radioOptions = document.querySelectorAll('.radio-option');
+            const radioInputs = document.querySelectorAll('input[name="attendance_type"]');
+            
+            radioInputs.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    radioOptions.forEach(opt => opt.classList.remove('selected'));
+                    this.parentElement.classList.add('selected');
+                    
+                    // Show/hide comment section based on selection
+                    if (this.value === 'partial') {
+                        commentSection.style.display = 'block';
+                    } else {
+                        commentSection.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Set initial selected state
+            const checkedRadio = document.querySelector('input[name="attendance_type"]:checked');
+            if (checkedRadio) {
+                checkedRadio.parentElement.classList.add('selected');
+            }
+        }
         
         if (markEntryBtn) {
             markEntryBtn.addEventListener('click', async function() {
                 markEntryBtn.disabled = true;
-                markEntryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking Entry...';
+                markEntryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking Attendance...';
+                
+                let bodyParams = {
+                    'regid': '{{ registration.registration_id }}',
+                    'email': '{{ registration.submitter_email }}',
+                    'event_id': '{{ event.id }}'
+                };
+                
+                if (hasParticipants) {
+                    // Collect participant attendance as array of booleans
+                    let participantAttendance = [];
+                    for (let i = 0; i < totalParticipants; i++) {
+                        const checkbox = document.getElementById('participant_' + i);
+                        participantAttendance.push(checkbox ? checkbox.checked : false);
+                    }
+                    bodyParams['participant_attendance'] = JSON.stringify(participantAttendance);
+                    bodyParams['attendance_type'] = 'participants';
+                } else {
+                    const selectedType = document.querySelector('input[name="attendance_type"]:checked');
+                    bodyParams['attendance_type'] = selectedType ? selectedType.value : 'full';
+                    const commentEl = document.getElementById('attendance_comment');
+                    bodyParams['attendance_comment'] = commentEl ? commentEl.value : '';
+                }
                 
                 try {
                     const response = await fetch('/admin/mark-entry', {
@@ -288,11 +693,7 @@
                         headers: {
                             'Content-Type': 'application/x-www-form-urlencoded',
                         },
-                        body: new URLSearchParams({
-                            'regid': '{{ registration.registration_id }}',
-                            'email': '{{ registration.submitter_email }}',
-                            'event_id': '{{ event.id }}'
-                        })
+                        body: new URLSearchParams(bodyParams)
                     });
                     
                     const result = await response.json();
@@ -300,7 +701,17 @@
                     if (response.ok && result.success) {
                         successMessage.classList.remove('hidden');
                         errorMessage.classList.add('hidden');
-                        markEntryBtn.style.display = 'none';
+                        
+                        // Update success message
+                        if (hasParticipants) {
+                            const presentCount = document.getElementById('presentCount').textContent;
+                            successMessage.querySelector('div').innerHTML = 
+                                '<strong>Attendance Marked Successfully!</strong><br>' +
+                                presentCount + ' of ' + totalParticipants + ' participants marked as present.';
+                        } else if (bodyParams['attendance_type'] === 'partial') {
+                            successMessage.querySelector('div').innerHTML = 
+                                '<strong>Marked as Partially Present!</strong><br>The participant has been checked in as partially present.';
+                        }
                         
                         // Redirect after 2 seconds
                         setTimeout(() => {
@@ -310,13 +721,13 @@
                         errorText.textContent = result.error || 'Failed to mark entry';
                         errorMessage.classList.remove('hidden');
                         markEntryBtn.disabled = false;
-                        markEntryBtn.innerHTML = '<i class="fas fa-check"></i> Mark as Entered';
+                        markEntryBtn.innerHTML = '<i class="fas fa-check"></i> Mark Attendance';
                     }
                 } catch (error) {
                     errorText.textContent = 'Network error. Please try again.';
                     errorMessage.classList.remove('hidden');
                     markEntryBtn.disabled = false;
-                    markEntryBtn.innerHTML = '<i class="fas fa-check"></i> Mark as Entered';
+                    markEntryBtn.innerHTML = '<i class="fas fa-check"></i> Mark Attendance';
                 }
             });
         }

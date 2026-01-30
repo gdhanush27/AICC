@@ -3,9 +3,582 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Registration Form - AICC Admin</title>
+    <title>Edit Form Template - {{ form.name }} - AICC Admin</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Use admin CSS variables for theme adaptation */
+        .form-container {
+            background: var(--admin-dark-light);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            max-width: 900px;
+            margin: 0 auto;
+            border: 1px solid var(--admin-border);
+        }
+        
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 2rem;
+            gap: 0;
+            flex-wrap: wrap;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            background: var(--admin-bg-light);
+            color: var(--admin-text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid var(--admin-border);
+        }
+        
+        .step:first-child {
+            border-radius: 30px 0 0 30px;
+        }
+        
+        .step:last-child {
+            border-radius: 0 30px 30px 0;
+        }
+        
+        .step.active {
+            background: var(--admin-primary);
+            color: white;
+            border-color: var(--admin-primary);
+        }
+        
+        .step.completed {
+            background: var(--admin-success);
+            color: white;
+            border-color: var(--admin-success);
+        }
+        
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .step.active .step-number,
+        .step.completed .step-number {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* Step Content */
+        .step-content {
+            display: none;
+        }
+        
+        .step-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Section styling */
+        .form-section {
+            background: var(--admin-bg-light);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--admin-border);
+        }
+        
+        .form-section h5 {
+            color: var(--admin-primary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+        }
+        
+        /* Quick Templates */
+        .quick-templates {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .quick-template-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--admin-primary);
+            background: transparent;
+            color: var(--admin-primary);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .quick-template-btn:hover,
+        .quick-template-btn.active {
+            background: var(--admin-primary);
+            color: white;
+        }
+        
+        /* Participant Preview */
+        .participant-preview {
+            background: var(--admin-bg);
+            border: 2px dashed var(--admin-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        
+        .participant-preview .preview-icons {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .participant-preview .preview-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        /* Custom Fields */
+        .field-card {
+            background: var(--admin-bg);
+            border: 1px solid var(--admin-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            padding-left: 1.75rem;
+            margin-bottom: 1rem;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .field-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border-color: var(--admin-primary);
+        }
+        
+        .field-card .drag-handle {
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--admin-text-secondary);
+            cursor: grab;
+            padding: 0.5rem;
+        }
+        
+        .field-card .remove-field {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background: var(--admin-danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .field-card .remove-field:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+        
+        .field-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        /* Navigation Buttons */
+        .step-navigation {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--admin-border);
+        }
+        
+        .btn-nav {
+            padding: 0.75rem 2rem;
+            border-radius: 30px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .btn-prev {
+            background: var(--admin-bg);
+            color: var(--admin-text);
+            border: 1px solid var(--admin-border);
+        }
+        
+        .btn-prev:hover {
+            background: var(--admin-bg-light);
+            border-color: var(--admin-primary);
+        }
+        
+        .btn-next {
+            background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary));
+            color: white;
+            border: none;
+        }
+        
+        .btn-submit {
+            background: linear-gradient(135deg, var(--admin-success), #059669);
+            color: white;
+            border: none;
+        }
+        
+        .btn-nav:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        
+        /* Field type badge */
+        .field-type-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .field-type-badge.text { background: rgba(25, 118, 210, 0.2); color: #42a5f5; }
+        .field-type-badge.email { background: rgba(194, 24, 91, 0.2); color: #f06292; }
+        .field-type-badge.number { background: rgba(56, 142, 60, 0.2); color: #66bb6a; }
+        .field-type-badge.tel { background: rgba(245, 124, 0, 0.2); color: #ffa726; }
+        .field-type-badge.textarea { background: rgba(123, 31, 162, 0.2); color: #ab47bc; }
+        .field-type-badge.select { background: rgba(0, 151, 167, 0.2); color: #26c6da; }
+        
+        /* Light mode badge colors */
+        body[data-theme="light"] .field-type-badge.text { background: #e3f2fd; color: #1976d2; }
+        body[data-theme="light"] .field-type-badge.email { background: #fce4ec; color: #c2185b; }
+        body[data-theme="light"] .field-type-badge.number { background: #e8f5e9; color: #388e3c; }
+        body[data-theme="light"] .field-type-badge.tel { background: #fff3e0; color: #f57c00; }
+        body[data-theme="light"] .field-type-badge.textarea { background: #f3e5f5; color: #7b1fa2; }
+        body[data-theme="light"] .field-type-badge.select { background: #e0f7fa; color: #0097a7; }
+        
+        /* Payment Section */
+        .payment-section {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.15));
+            border: 2px solid var(--admin-warning);
+        }
+        
+        body[data-theme="light"] .payment-section {
+            background: linear-gradient(135deg, #fff8e1, #ffecb3);
+        }
+        
+        /* Info box */
+        .info-box {
+            background: rgba(33, 150, 243, 0.15);
+            border-left: 4px solid #2196f3;
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 1rem;
+            color: var(--admin-text);
+        }
+        
+        body[data-theme="light"] .info-box {
+            background: #e3f2fd;
+        }
+        
+        .info-box i {
+            color: #2196f3;
+            margin-right: 0.5rem;
+        }
+        
+        /* Form inputs */
+        .form-control, .form-select {
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--admin-border);
+            background: var(--admin-bg);
+            color: var(--admin-text);
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--admin-primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        
+        .form-control::placeholder {
+            color: var(--admin-text-secondary);
+        }
+        
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
+            color: var(--admin-text);
+        }
+        
+        /* Checkbox styling */
+        .form-check {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .form-check-input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--admin-primary);
+        }
+        
+        .form-check-label {
+            color: var(--admin-text);
+        }
+        
+        /* Summary preview */
+        .summary-card {
+            background: var(--admin-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--admin-border);
+        }
+        
+        .summary-card h6 {
+            color: var(--admin-primary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--admin-border);
+            color: var(--admin-text);
+        }
+        
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .page-header h2 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--admin-text);
+        }
+        
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--admin-bg-light);
+            color: var(--admin-text);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            border: 1px solid var(--admin-border);
+        }
+        
+        .btn-back:hover {
+            background: var(--admin-primary);
+            color: white;
+            border-color: var(--admin-primary);
+        }
+        
+        .text-muted {
+            color: var(--admin-text-secondary);
+        }
+        
+        .text-danger {
+            color: var(--admin-danger);
+        }
+        
+        .text-success {
+            color: var(--admin-success);
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .bg-success {
+            background: var(--admin-success);
+            color: white;
+        }
+        
+        .bg-secondary {
+            background: var(--admin-gray);
+            color: white;
+        }
+        
+        .mb-3 {
+            margin-bottom: 1rem;
+        }
+        
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+        
+        .row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .col-md-6 {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .form-control-sm, .form-select-sm {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .small {
+            font-size: 0.85rem;
+        }
+        
+        /* Alert styles */
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .alert-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--admin-success);
+            border: 1px solid var(--admin-success);
+        }
+        
+        .alert-error, .alert-danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--admin-danger);
+            border: 1px solid var(--admin-danger);
+        }
+        
+        body[data-theme="light"] .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-color: #c3e6cb;
+        }
+        
+        body[data-theme="light"] .alert-error,
+        body[data-theme="light"] .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 1; transform: translate(-50%, 0); }
+            to { opacity: 0; transform: translate(-50%, -20px); }
+        }
+        
+        .form-control.error, .form-select.error {
+            border-color: var(--admin-danger);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .progress-steps {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .step {
+                width: 100%;
+                max-width: 280px;
+                justify-content: center;
+                border-radius: 8px !important;
+                margin-bottom: 0.5rem;
+            }
+            
+            .form-container {
+                padding: 1rem;
+            }
+            
+            .field-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .step-navigation {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .btn-nav {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
 </head>
 <body class="admin-dashboard">
     <nav class="admin-nav">
@@ -17,9 +590,9 @@
             <button id="theme-toggle" class="btn-theme">
                 <i class="fas fa-sun"></i>
             </button>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn-back">
-                <i class="fas fa-arrow-left"></i>
-                Dashboard
+            <a href="{{ url_for('home') }}" class="btn-view-site" target="_blank">
+                <i class="fas fa-external-link-alt"></i>
+                View Site
             </a>
             <a href="{{ url_for('admin_logout') }}" class="btn-logout">
                 <i class="fas fa-sign-out-alt"></i>
@@ -29,11 +602,6 @@
     </nav>
     
     <div class="admin-container">
-        <div class="admin-header">
-            <h1>Edit Registration Form</h1>
-            <p>Update form fields and settings</p>
-        </div>
-        
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -44,289 +612,645 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
-
-<div class="form-container">
-    <form method="POST" id="registrationFormEditor">
-        <div class="form-section">
-            <h3>Basic Information</h3>
-            
-            <div class="form-group">
-                <label for="name">Template Name *</label>
-                <input type="text" id="name" name="name" class="form-control" required 
-                       value="{{ form.name }}">
+        
+        <div class="page-header">
+            <div>
+                <h2><i class="fas fa-edit"></i> Edit Form Template</h2>
+                <p class="text-muted">Modify "{{ form.name }}" template settings</p>
             </div>
-
-            <div class="form-group">
-                <label for="description">Description</label>
-                <textarea id="description" name="description" class="form-control" rows="2" 
-                          placeholder="Brief description of when to use this template">{{ form.description if form.description else '' }}</textarea>
+            <a href="{{ url_for('admin_registration_forms') }}" class="btn-back">
+                <i class="fas fa-arrow-left"></i> Back to Forms
+            </a>
+        </div>
+        
+        <!-- Progress Steps -->
+        <div class="progress-steps">
+            <div class="step active" data-step="1" onclick="goToStep(1)">
+                <span class="step-number">1</span>
+                <span>Basic Info</span>
             </div>
-
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" name="active" value="true" {% if form.active %}checked{% endif %}> Active Template
-                </label>
-                <small class="form-text">Template is available for use in events</small>
+            <div class="step" data-step="2" onclick="goToStep(2)">
+                <span class="step-number">2</span>
+                <span>Participants</span>
             </div>
-            
-            <div class="form-group">
-                <label>
-                    <input type="checkbox" name="payment_enabled" id="paymentEnabled" value="true" 
-                           {% if form.payment_enabled %}checked{% endif %} onchange="togglePaymentSettings()"> Enable Payment
-                </label>
-                <small class="form-text">Require payment for registration (Razorpay integration)</small>
+            <div class="step" data-step="3" onclick="goToStep(3)">
+                <span class="step-number">3</span>
+                <span>Custom Fields</span>
             </div>
-            
-            <div id="paymentSettings" style="display: {% if form.payment_enabled %}block{% else %}none{% endif %};">
-                <div class="form-group">
-                    <label for="paymentAmount">Payment Amount (₹) *</label>
-                    <input type="number" id="paymentAmount" name="payment_amount" class="form-control" 
-                           value="{{ form.payment_amount if form.payment_amount else '' }}" 
-                           min="1" step="0.01" placeholder="100">
+            <div class="step" data-step="4" onclick="goToStep(4)">
+                <span class="step-number">4</span>
+                <span>Settings</span>
+            </div>
+        </div>
+        
+        <div class="form-container">
+            <form id="editFormTemplate" method="POST">
+                <!-- Step 1: Basic Info -->
+                <div class="step-content active" data-step="1">
+                    <div class="form-section">
+                        <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Template Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" id="formName" 
+                                   value="{{ form.name }}" required placeholder="e.g., Workshop Registration, Team Event">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="description" id="formDescription" rows="3"
+                                      placeholder="Brief description of this form template">{{ form.description or '' }}</textarea>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="active" id="formActive" 
+                                   {{ 'checked' if form.active else '' }}>
+                            <label class="form-check-label" for="formActive">
+                                <strong>Active</strong> - Template is available for use
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="info-box">
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Tip:</strong> Give your template a descriptive name that reflects its purpose.
+                    </div>
+                    
+                    <div class="step-navigation">
+                        <div></div>
+                        <button type="button" class="btn-nav btn-next" onclick="nextStep()">
+                            Next: Participants <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="paymentDescription">Payment Description</label>
-                    <input type="text" id="paymentDescription" name="payment_description" class="form-control" 
-                           value="{{ form.payment_description if form.payment_description else '' }}" 
-                           placeholder="Event registration fee">
+                <!-- Step 2: Participants -->
+                <div class="step-content" data-step="2">
+                    <div class="form-section">
+                        <h5><i class="fas fa-users"></i> Participant Configuration</h5>
+                        
+                        <div class="info-box">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Auto-collected for each participant:</strong> Name, Roll Number, and Email
+                        </div>
+                        
+                        <h6 style="margin-bottom: 0.75rem; font-weight: 600;">Quick Templates</h6>
+                        <div class="quick-templates">
+                            <button type="button" class="quick-template-btn" onclick="setParticipants(1, 1)">
+                                <i class="fas fa-user"></i> Solo (1)
+                            </button>
+                            <button type="button" class="quick-template-btn" onclick="setParticipants(2, 2)">
+                                <i class="fas fa-user-friends"></i> Duo (2)
+                            </button>
+                            <button type="button" class="quick-template-btn" onclick="setParticipants(2, 4)">
+                                <i class="fas fa-users"></i> Small Team (2-4)
+                            </button>
+                            <button type="button" class="quick-template-btn" onclick="setParticipants(3, 6)">
+                                <i class="fas fa-users"></i> Medium Team (3-6)
+                            </button>
+                            <button type="button" class="quick-template-btn" onclick="setParticipants(1, 10)">
+                                <i class="fas fa-users"></i> Flexible (1-10)
+                            </button>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Minimum Participants <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="min_participants" id="minParticipants" 
+                                       min="1" max="50" value="{{ form.min_participants|default(1) }}" required 
+                                       onchange="updateParticipantPreview()">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Maximum Participants <span class="text-danger">*</span></label>
+                                <input type="number" class="form-control" name="max_participants" id="maxParticipants" 
+                                       min="1" max="50" value="{{ form.max_participants|default(1) }}" required 
+                                       onchange="updateParticipantPreview()">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-section">
+                        <h5><i class="fas fa-eye"></i> Preview</h5>
+                        <div class="participant-preview">
+                            <div class="preview-icons" id="participantPreviewIcons">
+                                <!-- Generated by JS -->
+                            </div>
+                            <p style="margin: 0;" id="participantPreviewText">1 participant required</p>
+                        </div>
+                    </div>
+                    
+                    <div class="step-navigation">
+                        <button type="button" class="btn-nav btn-prev" onclick="prevStep()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button type="button" class="btn-nav btn-next" onclick="nextStep()">
+                            Next: Custom Fields <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
                 </div>
-            </div>
+                
+                <!-- Step 3: Custom Fields -->
+                <div class="step-content" data-step="3">
+                    <div class="form-section">
+                        <h5><i class="fas fa-list-alt"></i> Custom Fields</h5>
+                        <p class="text-muted">Add additional fields beyond participant info (Name, Roll No, Email)</p>
+                        
+                        <div id="customFieldsContainer">
+                            <!-- Fields added dynamically -->
+                        </div>
+                        
+                        <button type="button" class="btn-nav btn-next" onclick="addCustomField()" style="margin-top: 1rem;">
+                            <i class="fas fa-plus"></i> Add Custom Field
+                        </button>
+                    </div>
+                    
+                    <div class="info-box">
+                        <i class="fas fa-lightbulb"></i>
+                        <strong>Common fields:</strong> Phone number, Department, Year of study, Dietary preferences, T-shirt size
+                    </div>
+                    
+                    <div class="step-navigation">
+                        <button type="button" class="btn-nav btn-prev" onclick="prevStep()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button type="button" class="btn-nav btn-next" onclick="nextStep()">
+                            Next: Settings <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Settings -->
+                <div class="step-content" data-step="4">
+                    <div class="form-section payment-section">
+                        <h5><i class="fas fa-credit-card"></i> Payment Settings</h5>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="payment_enabled" id="paymentEnabled"
+                                   {{ 'checked' if form.payment_enabled else '' }} onchange="togglePaymentAmount()">
+                            <label class="form-check-label" for="paymentEnabled">
+                                <strong>Enable Payment</strong> - Collect registration fee
+                            </label>
+                        </div>
+                        
+                        <div id="paymentAmountContainer" style="display: {{ 'block' if form.payment_enabled else 'none' }};">
+                            <label class="form-label">Registration Amount (₹)</label>
+                            <input type="number" class="form-control" name="payment_amount" id="paymentAmount" 
+                                   min="1" value="{{ form.payment_amount|default(0) }}" placeholder="Enter amount">
+                        </div>
+                    </div>
+                    
+                    <!-- Summary -->
+                    <div class="form-section">
+                        <h5><i class="fas fa-clipboard-list"></i> Template Summary</h5>
+                        
+                        <div class="summary-card">
+                            <h6><i class="fas fa-file-alt"></i> Basic Info</h6>
+                            <div class="summary-item">
+                                <span>Template Name</span>
+                                <strong id="summaryName">-</strong>
+                            </div>
+                            <div class="summary-item">
+                                <span>Status</span>
+                                <strong id="summaryStatus">-</strong>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <h6><i class="fas fa-users"></i> Participants</h6>
+                            <div class="summary-item">
+                                <span>Team Size</span>
+                                <strong id="summaryParticipants">-</strong>
+                            </div>
+                            <div class="summary-item">
+                                <span>Collected per participant</span>
+                                <strong>Name, Roll No, Email</strong>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <h6><i class="fas fa-list"></i> Custom Fields</h6>
+                            <div id="summaryFields">
+                                <p class="text-muted" style="margin: 0;">No custom fields added</p>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-card">
+                            <h6><i class="fas fa-credit-card"></i> Payment</h6>
+                            <div class="summary-item">
+                                <span>Payment Required</span>
+                                <strong id="summaryPayment">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-navigation">
+                        <button type="button" class="btn-nav btn-prev" onclick="prevStep()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button type="submit" class="btn-nav btn-submit">
+                            <i class="fas fa-save"></i> Update Template
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Hidden field for custom fields JSON -->
+                <input type="hidden" name="custom_fields" id="customFieldsJson">
+            </form>
         </div>
+    </div>
 
-        <div class="form-section">
-            <h3>Form Fields</h3>
-            <div id="fieldsContainer"></div>
-            <button type="button" class="btn btn-secondary" onclick="addField()">
-                <i class="fas fa-plus"></i> Add Field
+    <!-- Field Template -->
+    <template id="fieldTemplate">
+        <div class="field-card">
+            <span class="drag-handle"><i class="fas fa-grip-vertical"></i></span>
+            <button type="button" class="remove-field" onclick="removeField(this)">
+                <i class="fas fa-times"></i>
             </button>
-        </div>
-
-        <input type="hidden" id="fields" name="fields" value="">
-
-        <div class="form-actions">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save"></i> Update Form
-            </button>
-            <a href="{{ url_for('admin_registration_forms') }}" class="btn btn-secondary">Cancel</a>
-        </div>
-    </form>
-</div>
-
-<script>
-let fields = [];
-let existingFields = {{ form.fields | tojson }};
-
-function addField(fieldData = null) {
-    const fieldId = Date.now() + Math.random();
-    const fieldHtml = `
-        <div class="field-item" id="field-${fieldId}">
-            <div class="field-header">
-                <h4>Field ${fields.length + 1}</h4>
-                <button type="button" class="btn btn-sm btn-danger" onclick="removeField(${fieldId})">
-                    <i class="fas fa-trash"></i> Remove
-                </button>
-            </div>
-            <div class="field-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <label>Field Name (internal) *</label>
-                        <input type="text" class="form-control field-name" value="${fieldData?.name || ''}" required>
-                    </div>
-                    <div class="col-md-6">
-                        <label>Field Label (display) *</label>
-                        <input type="text" class="form-control field-label" value="${fieldData?.label || ''}" required>
-                    </div>
+            
+            <div class="field-row">
+                <div class="mb-3">
+                    <label class="form-label small">Field Name (internal)</label>
+                    <input type="text" class="form-control form-control-sm field-name" 
+                           placeholder="e.g., phone_number" required>
                 </div>
-                <div class="row mt-2">
-                    <div class="col-md-4">
-                        <label>Field Type *</label>
-                        <select class="form-control field-type" onchange="toggleOptions(${fieldId})">
-                            <option value="text" ${fieldData?.type === 'text' ? 'selected' : ''}>Text</option>
-                            <option value="email" ${fieldData?.type === 'email' ? 'selected' : ''}>Email</option>
-                            <option value="tel" ${fieldData?.type === 'tel' ? 'selected' : ''}>Phone</option>
-                            <option value="select" ${fieldData?.type === 'select' ? 'selected' : ''}>Dropdown</option>
-                            <option value="textarea" ${fieldData?.type === 'textarea' ? 'selected' : ''}>Text Area</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label>
-                            <input type="checkbox" class="field-required" ${fieldData?.required ? 'checked' : ''}> Required
-                        </label>
-                    </div>
-                    <div class="col-md-4 field-maxlength-container" style="display: ${fieldData?.type === 'textarea' ? 'block' : 'none'};">
-                        <label>Max Length</label>
-                        <input type="number" class="form-control field-maxlength" value="${fieldData?.maxlength || ''}">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label small">Label (displayed)</label>
+                    <input type="text" class="form-control form-control-sm field-label" 
+                           placeholder="e.g., Phone Number" required>
                 </div>
-                <div class="row mt-2">
-                    <div class="col-md-12">
-                        <label>Placeholder</label>
-                        <input type="text" class="form-control field-placeholder" value="${fieldData?.placeholder || ''}">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label small">Type</label>
+                    <select class="form-select form-select-sm field-type" onchange="updateFieldOptions(this)">
+                        <option value="text">Text</option>
+                        <option value="email">Email</option>
+                        <option value="number">Number</option>
+                        <option value="tel">Phone</option>
+                        <option value="textarea">Text Area</option>
+                        <option value="select">Dropdown</option>
+                    </select>
                 </div>
-                <div class="row mt-2 field-options-container" style="display: ${fieldData?.type === 'select' ? 'block' : 'none'};">
-                    <div class="col-md-12">
-                        <label>Options (comma-separated)</label>
-                        <input type="text" class="form-control field-options" value="${fieldData?.options?.join(', ') || ''}">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label small">Placeholder</label>
+                    <input type="text" class="form-control form-control-sm field-placeholder" 
+                           placeholder="Hint text...">
                 </div>
             </div>
+            
+            <div class="field-options-container mt-2" style="display: none;">
+                <label class="form-label small">Options (comma separated)</label>
+                <input type="text" class="form-control form-control-sm field-options" 
+                       placeholder="Option 1, Option 2, Option 3">
+            </div>
+            
+            <div class="form-check mt-2">
+                <input class="form-check-input field-required" type="checkbox" checked>
+                <label class="form-check-label small">Required field</label>
+            </div>
         </div>
-    `;
-    
-    document.getElementById('fieldsContainer').insertAdjacentHTML('beforeend', fieldHtml);
-    fields.push(fieldId);
-}
+    </template>
 
-function removeField(fieldId) {
-    document.getElementById(`field-${fieldId}`).remove();
-    fields = fields.filter(id => id !== fieldId);
-}
+    <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+    <script>
+    let currentStep = 1;
+    const totalSteps = 4;
 
-function toggleOptions(fieldId) {
-    const fieldDiv = document.getElementById(`field-${fieldId}`);
-    const typeSelect = fieldDiv.querySelector('.field-type');
-    const optionsContainer = fieldDiv.querySelector('.field-options-container');
-    const maxlengthContainer = fieldDiv.querySelector('.field-maxlength-container');
-    
-    if (typeSelect.value === 'select') {
-        optionsContainer.style.display = 'block';
-    } else {
-        optionsContainer.style.display = 'none';
-    }
-    
-    if (typeSelect.value === 'textarea') {
-        maxlengthContainer.style.display = 'block';
-    } else {
-        maxlengthContainer.style.display = 'none';
-    }
-}
+    // Load existing custom fields (support both new and legacy structure)
+    const existingFields = {{ (form.custom_fields or form.fields or [])|tojson }};
 
-document.getElementById('registrationFormEditor').addEventListener('submit', function(e) {
-    const fieldsData = [];
-    
-    document.querySelectorAll('.field-item').forEach(fieldDiv => {
-        const field = {
-            name: fieldDiv.querySelector('.field-name').value,
-            label: fieldDiv.querySelector('.field-label').value,
-            type: fieldDiv.querySelector('.field-type').value,
-            required: fieldDiv.querySelector('.field-required').checked,
-            placeholder: fieldDiv.querySelector('.field-placeholder').value
-        };
-        
-        if (field.type === 'select') {
-            const optionsStr = fieldDiv.querySelector('.field-options').value;
-            field.options = optionsStr.split(',').map(o => o.trim()).filter(o => o);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load existing fields
+        if (existingFields && existingFields.length > 0) {
+            existingFields.forEach(field => {
+                addCustomField(field);
+            });
         }
         
-        if (field.type === 'textarea') {
-            const maxlength = fieldDiv.querySelector('.field-maxlength').value;
-            if (maxlength) {
-                field.maxlength = parseInt(maxlength);
+        updateParticipantPreview();
+        highlightActiveQuickTemplate();
+        
+        // Form submission
+        document.getElementById('editFormTemplate').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Validate
+            const name = document.getElementById('formName').value.trim();
+            if (!name) {
+                alert('Please enter a template name');
+                goToStep(1);
+                return;
+            }
+            
+            const minP = parseInt(document.getElementById('minParticipants').value);
+            const maxP = parseInt(document.getElementById('maxParticipants').value);
+            if (minP > maxP) {
+                alert('Minimum participants cannot be greater than maximum');
+                goToStep(2);
+                return;
+            }
+            
+            // Collect custom fields
+            const fields = [];
+            document.querySelectorAll('#customFieldsContainer .field-card').forEach(card => {
+                const field = {
+                    name: card.querySelector('.field-name').value.trim(),
+                    label: card.querySelector('.field-label').value.trim(),
+                    type: card.querySelector('.field-type').value,
+                    placeholder: card.querySelector('.field-placeholder').value.trim(),
+                    required: card.querySelector('.field-required').checked
+                };
+                
+                if (field.type === 'select') {
+                    const optionsStr = card.querySelector('.field-options').value;
+                    field.options = optionsStr.split(',').map(o => o.trim()).filter(o => o);
+                }
+                
+                if (field.name && field.label) {
+                    fields.push(field);
+                }
+            });
+            
+            document.getElementById('customFieldsJson').value = JSON.stringify(fields);
+            
+            // Submit
+            this.submit();
+        });
+    });
+
+    function goToStep(step) {
+        if (step < 1 || step > totalSteps) return;
+        
+        // Update step indicators
+        document.querySelectorAll('.step').forEach(s => {
+            const stepNum = parseInt(s.dataset.step);
+            s.classList.remove('active', 'completed');
+            if (stepNum < step) s.classList.add('completed');
+            if (stepNum === step) s.classList.add('active');
+        });
+        
+        // Update content
+        document.querySelectorAll('.step-content').forEach(c => {
+            c.classList.remove('active');
+            if (parseInt(c.dataset.step) === step) c.classList.add('active');
+        });
+        
+        currentStep = step;
+        
+        // Update summary on last step
+        if (step === 4) {
+            updateSummary();
+        }
+    }
+
+    function nextStep() {
+        if (currentStep < totalSteps) {
+            if (validateCurrentStep()) {
+                goToStep(currentStep + 1);
+            }
+        }
+    }
+    
+    function validateCurrentStep() {
+        let isValid = true;
+        let errorMessage = '';
+        
+        if (currentStep === 1) {
+            // Validate Basic Info
+            const name = document.getElementById('formName').value.trim();
+            if (!name) {
+                errorMessage = 'Please enter a template name';
+                document.getElementById('formName').focus();
+                isValid = false;
+            }
+        } else if (currentStep === 2) {
+            // Validate Participants
+            const minP = parseInt(document.getElementById('minParticipants').value);
+            const maxP = parseInt(document.getElementById('maxParticipants').value);
+            
+            if (!minP || minP < 1) {
+                errorMessage = 'Minimum participants must be at least 1';
+                document.getElementById('minParticipants').focus();
+                isValid = false;
+            } else if (!maxP || maxP < 1) {
+                errorMessage = 'Maximum participants must be at least 1';
+                document.getElementById('maxParticipants').focus();
+                isValid = false;
+            } else if (minP > maxP) {
+                errorMessage = 'Minimum participants cannot be greater than maximum';
+                document.getElementById('minParticipants').focus();
+                isValid = false;
+            }
+        } else if (currentStep === 3) {
+            // Validate Custom Fields (if any)
+            const fieldCards = document.querySelectorAll('#customFieldsContainer .field-card');
+            for (const card of fieldCards) {
+                const fieldName = card.querySelector('.field-name').value.trim();
+                const fieldLabel = card.querySelector('.field-label').value.trim();
+                
+                if (!fieldName) {
+                    errorMessage = 'Please fill in the field name for all custom fields';
+                    card.querySelector('.field-name').focus();
+                    isValid = false;
+                    break;
+                }
+                if (!fieldLabel) {
+                    errorMessage = 'Please fill in the label for all custom fields';
+                    card.querySelector('.field-label').focus();
+                    isValid = false;
+                    break;
+                }
+                
+                // Check for valid field name (no spaces, alphanumeric + underscore)
+                if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fieldName)) {
+                    errorMessage = 'Field name must start with a letter and contain only letters, numbers, and underscores';
+                    card.querySelector('.field-name').focus();
+                    isValid = false;
+                    break;
+                }
+                
+                // Check dropdown options
+                const fieldType = card.querySelector('.field-type').value;
+                if (fieldType === 'select') {
+                    const options = card.querySelector('.field-options').value.trim();
+                    if (!options) {
+                        errorMessage = 'Please provide options for the dropdown field';
+                        card.querySelector('.field-options').focus();
+                        isValid = false;
+                        break;
+                    }
+                }
             }
         }
         
-        fieldsData.push(field);
-    });
-    
-    document.getElementById('fields').value = JSON.stringify(fieldsData);
-});
-
-// Load existing fields
-existingFields.forEach(field => addField(field));
-
-// If no fields, add one empty field
-if (existingFields.length === 0) {
-    addField();
-}
-
-function togglePaymentSettings() {
-    const paymentEnabled = document.getElementById('paymentEnabled').checked;
-    const paymentSettings = document.getElementById('paymentSettings');
-    const paymentAmount = document.getElementById('paymentAmount');
-    
-    if (paymentEnabled) {
-        paymentSettings.style.display = 'block';
-        paymentAmount.required = true;
-    } else {
-        paymentSettings.style.display = 'none';
-        paymentAmount.required = false;
+        if (!isValid && errorMessage) {
+            showValidationError(errorMessage);
+        }
+        
+        return isValid;
     }
-}
-</script>
-
-<style>
-.form-container {
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-.form-section {
-    background: white;
-    padding: 2rem;
-    border-radius: 0.5rem;
-    margin-bottom: 2rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.form-section h3 {
-    margin-bottom: 1.5rem;
-    color: #333;
-}
-
-.field-item {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
-    border: 1px solid #dee2e6;
-}
-
-.field-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.field-header h4 {
-    margin: 0;
-    color: #495057;
-}
-
-.field-body .row {
-    margin-bottom: 0.5rem;
-}
-
-.form-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    padding: 2rem;
-}
-
-.endpoint-row {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-}
-
-.btn-outline {
-    background: transparent;
-    border: 1px solid #ced4da;
-    color: #495057;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
-    white-space: nowrap;
-}
-
-.btn-outline:hover {
-    background: #f1f3f5;
-}
-</style>
-    </div>
     
-    <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+    function showValidationError(message) {
+        // Remove existing error
+        const existingError = document.querySelector('.validation-error');
+        if (existingError) existingError.remove();
+        
+        // Create error alert
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'validation-error alert alert-danger';
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+        errorDiv.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 300px; text-align: center; animation: slideDown 0.3s ease;';
+        
+        document.body.appendChild(errorDiv);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            errorDiv.style.animation = 'slideUp 0.3s ease';
+            setTimeout(() => errorDiv.remove(), 300);
+        }, 3000);
+    }
+
+    function prevStep() {
+        if (currentStep > 1) {
+            goToStep(currentStep - 1);
+        }
+    }
+
+    function setParticipants(min, max) {
+        document.getElementById('minParticipants').value = min;
+        document.getElementById('maxParticipants').value = max;
+        updateParticipantPreview();
+        highlightActiveQuickTemplate();
+    }
+
+    function highlightActiveQuickTemplate() {
+        const min = parseInt(document.getElementById('minParticipants').value);
+        const max = parseInt(document.getElementById('maxParticipants').value);
+        
+        document.querySelectorAll('.quick-template-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Match known templates
+        const templates = [
+            { min: 1, max: 1 },
+            { min: 2, max: 2 },
+            { min: 2, max: 4 },
+            { min: 3, max: 6 },
+            { min: 1, max: 10 }
+        ];
+        
+        templates.forEach((t, i) => {
+            if (t.min === min && t.max === max) {
+                document.querySelectorAll('.quick-template-btn')[i]?.classList.add('active');
+            }
+        });
+    }
+
+    function updateParticipantPreview() {
+        const min = parseInt(document.getElementById('minParticipants').value) || 1;
+        const max = parseInt(document.getElementById('maxParticipants').value) || 1;
+        
+        const iconsContainer = document.getElementById('participantPreviewIcons');
+        const textEl = document.getElementById('participantPreviewText');
+        
+        // Generate icons (show max, but limit to 10 for display)
+        const displayCount = Math.min(max, 10);
+        let iconsHtml = '';
+        for (let i = 0; i < displayCount; i++) {
+            iconsHtml += `<div class="preview-icon"><i class="fas fa-user"></i></div>`;
+        }
+        if (max > 10) {
+            iconsHtml += `<div class="preview-icon">+${max - 10}</div>`;
+        }
+        iconsContainer.innerHTML = iconsHtml;
+        
+        // Update text
+        if (min === max) {
+            textEl.textContent = `Exactly ${min} participant${min > 1 ? 's' : ''} required`;
+        } else {
+            textEl.textContent = `${min} to ${max} participants allowed`;
+        }
+    }
+
+    function addCustomField(existingData = null) {
+        const template = document.getElementById('fieldTemplate');
+        const clone = template.content.cloneNode(true);
+        const container = document.getElementById('customFieldsContainer');
+        
+        if (existingData) {
+            clone.querySelector('.field-name').value = existingData.name || '';
+            clone.querySelector('.field-label').value = existingData.label || '';
+            clone.querySelector('.field-type').value = existingData.type || 'text';
+            clone.querySelector('.field-placeholder').value = existingData.placeholder || '';
+            clone.querySelector('.field-required').checked = existingData.required !== false;
+            
+            if (existingData.type === 'select') {
+                clone.querySelector('.field-options-container').style.display = 'block';
+                clone.querySelector('.field-options').value = (existingData.options || []).join(', ');
+            }
+        }
+        
+        container.appendChild(clone);
+    }
+
+    function removeField(btn) {
+        btn.closest('.field-card').remove();
+    }
+
+    function updateFieldOptions(select) {
+        const card = select.closest('.field-card');
+        const optionsContainer = card.querySelector('.field-options-container');
+        optionsContainer.style.display = select.value === 'select' ? 'block' : 'none';
+    }
+
+    function togglePaymentAmount() {
+        const enabled = document.getElementById('paymentEnabled').checked;
+        document.getElementById('paymentAmountContainer').style.display = enabled ? 'block' : 'none';
+    }
+
+    function updateSummary() {
+        // Basic info
+        document.getElementById('summaryName').textContent = 
+            document.getElementById('formName').value || 'Unnamed';
+        document.getElementById('summaryStatus').innerHTML = 
+            document.getElementById('formActive').checked 
+                ? '<span class="badge bg-success">Active</span>' 
+                : '<span class="badge bg-secondary">Inactive</span>';
+        
+        // Participants
+        const min = document.getElementById('minParticipants').value;
+        const max = document.getElementById('maxParticipants').value;
+        document.getElementById('summaryParticipants').textContent = 
+            min === max ? `${min} participant${min > 1 ? 's' : ''}` : `${min} - ${max} participants`;
+        
+        // Custom fields
+        const fieldsContainer = document.getElementById('summaryFields');
+        const fieldCards = document.querySelectorAll('#customFieldsContainer .field-card');
+        
+        if (fieldCards.length === 0) {
+            fieldsContainer.innerHTML = '<p class="text-muted" style="margin: 0;">No custom fields added</p>';
+        } else {
+            let html = '';
+            fieldCards.forEach(card => {
+                const label = card.querySelector('.field-label').value || 'Unnamed';
+                const type = card.querySelector('.field-type').value;
+                const required = card.querySelector('.field-required').checked;
+                html += `
+                    <div class="summary-item">
+                        <span>${label} <span class="field-type-badge ${type}">${type}</span></span>
+                        <span>${required ? '<i class="fas fa-check text-success"></i> Required' : '<i class="fas fa-minus text-muted"></i> Optional'}</span>
+                    </div>
+                `;
+            });
+            fieldsContainer.innerHTML = html;
+        }
+        
+        // Payment
+        const paymentEnabled = document.getElementById('paymentEnabled').checked;
+        const paymentAmount = document.getElementById('paymentAmount').value;
+        document.getElementById('summaryPayment').innerHTML = paymentEnabled 
+            ? `<span class="text-success">₹${paymentAmount}</span>` 
+            : '<span class="text-muted">No</span>';
+    }
+    </script>
 </body>
 </html>

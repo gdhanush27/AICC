@@ -29,7 +29,8 @@
             "date": "2026-01-30",
             "message": "Register now!"
         },
-        "registration_file": "data/registrations/thinkathon_registrations.json"
+        "registration_file": "data/registrations/thinkathon_1_registrations.json",
+        "allow_registration": true
     },
     {
         "id": 2,
@@ -58,7 +59,7 @@
         "register_link": "#",
         "template_id": 2,
         "registration_deadline": {
-            "date": "2026-01-26",
+            "date": "2026-01-30",
             "message": "Register now!"
         }
     },
@@ -89,7 +90,7 @@
         "register_link": "#",
         "template_id": 1,
         "registration_deadline": {
-            "date": "TBA",
+            "date": "2026-01-30",
             "message": "Coming soon!"
         }
     },
@@ -182,6 +183,31 @@
         "registration_deadline": {
             "date": "TBA",
             "message": "Event completed"
+        }
+    },
+    {
+        "id": 7,
+        "name": "danakumar",
+        "date": "2026-02-14",
+        "time": "10 am - 5 pm",
+        "location": "KEC",
+        "description": "Descriptoin",
+        "how": "How It Works",
+        "status": "upcoming",
+        "image": "/static/uploads/20260129_232519_7dc1acf2-59e2-41bf-836e-22c4553e3c2d.png",
+        "rules": [
+            "Rules (one per line)\r",
+            "Rules (one per line)\r",
+            "Rules (one per line)"
+        ],
+        "coordinators": [],
+        "registration_type": "internal",
+        "template_id": 4,
+        "register_link": "#",
+        "registration_file": "data/registrations/danakumar_7_registrations.json",
+        "registration_deadline": {
+            "date": "2026-02-10",
+            "message": "Register now"
         }
     }
 ]

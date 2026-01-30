@@ -1,15 +1,29 @@
 [
     {
         "id": 1,
-        "name": "solo event",
-        "description": "For solo event",
-        "fields": [
+        "name": "Solo Event Template",
+        "description": "For solo/individual events (1 participant only)",
+        "min_participants": 1,
+        "max_participants": 1,
+        "custom_fields": [],
+        "active": true,
+        "payment_enabled": false,
+        "payment_amount": 0,
+        "payment_description": ""
+    },
+    {
+        "id": 2,
+        "name": "Team Event Template",
+        "description": "For team events with 2-4 members",
+        "min_participants": 2,
+        "max_participants": 4,
+        "custom_fields": [
             {
-                "name": "email",
-                "label": "Email Address",
-                "type": "email",
+                "name": "team_name",
+                "label": "Team Name",
+                "type": "text",
                 "required": true,
-                "placeholder": ""
+                "placeholder": "Enter your team name"
             }
         ],
         "active": true,
@@ -18,17 +32,12 @@
         "payment_description": ""
     },
     {
-        "id": 2,
-        "name": "test payment",
-        "description": "",
-        "fields": [
-            {
-                "name": "email",
-                "label": "email",
-                "type": "email",
-                "required": true,
-                "placeholder": "email"
-            },
+        "id": 3,
+        "name": "Test Payment Template",
+        "description": "Template with payment enabled",
+        "min_participants": 1,
+        "max_participants": 1,
+        "custom_fields": [
             {
                 "name": "phone",
                 "label": "Phone Number",
@@ -41,5 +50,17 @@
         "payment_enabled": true,
         "payment_amount": 10,
         "payment_description": "Test payment for registration"
+    },
+    {
+        "id": 4,
+        "name": "4 member",
+        "description": "",
+        "min_participants": 2,
+        "max_participants": 4,
+        "custom_fields": [],
+        "active": true,
+        "payment_enabled": false,
+        "payment_amount": 0,
+        "payment_description": ""
     }
 ]

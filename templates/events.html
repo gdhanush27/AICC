@@ -7,6 +7,14 @@
     <div class="container">
         <h1>Our <span class="gradient-text">Events</span></h1>
         <p>Explore our workshops, hackathons, and collaborative projects</p>
+        
+        <!-- Attendance Check Link - More Prominent -->
+        <div class="mt-4">
+            <a href="{{ url_for('attendance_check') }}" class="btn btn-primary btn-lg" style="display: inline-flex; align-items: center; gap: 10px; padding: 12px 30px; border-radius: 50px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                <i class="fas fa-clipboard-check"></i>
+                <span>Check Your Attendance</span>
+            </a>
+        </div>
     </div>
 </section>
 
@@ -47,6 +55,12 @@
                             <i class="fas fa-map-marker-alt"></i>
                             <span>{{ event.location }}</span>
                         </div>
+                        {% if event.registration_deadline %}
+                        <div class="meta-item" style="color: #ff6b6b;">
+                            <i class="fas fa-hourglass-half"></i>
+                            <span><strong>Reg Deadline: {{ event.registration_deadline.date }}</strong></span>
+                        </div>
+                        {% endif %}
                     </div>
                     <p class="event-description-full">{{ event.description }}</p>
                     

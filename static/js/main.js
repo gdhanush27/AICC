@@ -1,24 +1,57 @@
 // Mobile Navigation Toggle
 const navToggle = document.getElementById('navToggle');
 const navMenu = document.getElementById('navMenu');
+const navOverlay = document.getElementById('navOverlay');
+
+function toggleNav() {
+    const isOpen = navMenu.classList.contains('active');
+    
+    navMenu.classList.toggle('active');
+    navToggle.classList.toggle('active');
+    navToggle.setAttribute('aria-expanded', !isOpen);
+    
+    if (navOverlay) {
+        navOverlay.classList.toggle('active');
+    }
+    
+    // Prevent body scroll when menu is open
+    document.body.style.overflow = isOpen ? '' : 'hidden';
+}
+
+function closeNav() {
+    navMenu.classList.remove('active');
+    navToggle.classList.remove('active');
+    navToggle.setAttribute('aria-expanded', 'false');
+    
+    if (navOverlay) {
+        navOverlay.classList.remove('active');
+    }
+    
+    document.body.style.overflow = '';
+}
 
 if (navToggle) {
-    navToggle.addEventListener('click', () => {
-        navMenu.classList.toggle('active');
-        
-        // Animate hamburger
-        const spans = navToggle.querySelectorAll('span');
-        if (navMenu.classList.contains('active')) {
-            spans[0].style.transform = 'rotate(45deg) translateY(12px)';
-            spans[1].style.opacity = '0';
-            spans[2].style.transform = 'rotate(-45deg) translateY(-12px)';
-        } else {
-            spans[0].style.transform = 'none';
-            spans[1].style.opacity = '1';
-            spans[2].style.transform = 'none';
-        }
-    });
+    navToggle.addEventListener('click', toggleNav);
 }
+
+// Close menu when clicking overlay
+if (navOverlay) {
+    navOverlay.addEventListener('click', closeNav);
+}
+
+// Close menu on escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && navMenu && navMenu.classList.contains('active')) {
+        closeNav();
+    }
+});
+
+// Close menu on window resize if desktop size
+window.addEventListener('resize', () => {
+    if (window.innerWidth > 900 && navMenu && navMenu.classList.contains('active')) {
+        closeNav();
+    }
+});
 
 // Theme Toggle
 const themeToggle = document.getElementById('theme-toggle-main');
@@ -57,12 +90,8 @@ function updateThemeIcon(theme) {
 const navLinks = document.querySelectorAll('.nav-link');
 navLinks.forEach(link => {
     link.addEventListener('click', () => {
-        if (navMenu.classList.contains('active')) {
-            navMenu.classList.remove('active');
-            const spans = navToggle.querySelectorAll('span');
-            spans[0].style.transform = 'none';
-            spans[1].style.opacity = '1';
-            spans[2].style.transform = 'none';
+        if (navMenu && navMenu.classList.contains('active')) {
+            closeNav();
         }
     });
 });
@@ -269,7 +298,8 @@ function validateField(field) {
         field.style.background = 'rgba(16, 185, 129, 0.05)';
     } else {
         field.style.borderColor = 'var(--border-color)';
-        field.style.background = 'var(--dark-bg)';
+        // Use empty string to reset to CSS default, which respects the current theme
+        field.style.background = '';
     }
     
     return isValid;
@@ -453,10 +483,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     successMsg.classList.remove('hidden');
                     this.reset();
                     
-                    // Reset validation states
+                    // Reset validation states - use empty string to reset to CSS defaults
                     formInputs.forEach(input => {
-                        input.style.borderColor = 'var(--border-color)';
-                        input.style.background = 'var(--dark-bg)';
+                        input.style.borderColor = '';
+                        input.style.background = '';
                     });
                     
                     // Show confetti

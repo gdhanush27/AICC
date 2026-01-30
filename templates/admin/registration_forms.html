@@ -129,9 +129,18 @@
                 <span class="meta-item">
                     <i class="fas fa-hashtag"></i> ID: {{ form.id }}
                 </span>
+                {% if form.min_participants is defined and form.max_participants is defined %}
                 <span class="meta-item">
-                    <i class="fas fa-list"></i> {{ form.fields|length }} fields
+                    <i class="fas fa-users"></i> {{ form.min_participants }}-{{ form.max_participants }} participants
                 </span>
+                <span class="meta-item">
+                    <i class="fas fa-list"></i> {{ (form.custom_fields|default([]))|length }} custom fields
+                </span>
+                {% else %}
+                <span class="meta-item">
+                    <i class="fas fa-list"></i> {{ (form.fields|default([]))|length }} fields
+                </span>
+                {% endif %}
             </div>
         </div>
 
@@ -150,10 +159,39 @@
                 <span><code>{{ form.id }}</code></span>
             </div>
 
+            {% if form.min_participants is defined and form.max_participants is defined %}
+            <div class="info-row">
+                <label><i class="fas fa-users"></i> Participants</label>
+                <span>
+                    {% if form.min_participants == form.max_participants %}
+                        {{ form.min_participants }} participant(s)
+                    {% else %}
+                        {{ form.min_participants }} - {{ form.max_participants }} participants
+                    {% endif %}
+                    <small style="display: block; color: var(--text-secondary); font-size: 0.8rem;">
+                        Each participant: Name, Roll No, Email
+                    </small>
+                </span>
+            </div>
+            <div class="info-row">
+                <label><i class="fas fa-list"></i> Custom Fields</label>
+                <span>{{ (form.custom_fields|default([]))|length }} custom field(s)</span>
+            </div>
+            {% else %}
             <div class="info-row">
                 <label><i class="fas fa-list"></i> Fields Count</label>
-                <span>{{ form.fields|length }} field(s)</span>
+                <span>{{ (form.fields|default([]))|length }} field(s)</span>
             </div>
+            {% endif %}
+            
+            {% if form.payment_enabled %}
+            <div class="info-row">
+                <label><i class="fas fa-rupee-sign"></i> Payment</label>
+                <span style="color: #10b981; font-weight: 600;">
+                    <i class="fas fa-check-circle"></i> ₹{{ form.payment_amount }}
+                </span>
+            </div>
+            {% endif %}
         </div>
 
         <div class="form-card-footer">
