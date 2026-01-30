@@ -56,15 +56,21 @@
             <div class="step-connector"></div>
             <div class="step" data-step="2">
                 <div class="step-number">2</div>
-                <div class="step-label">Form Fields</div>
+                <div class="step-label">Participants</div>
             </div>
             <div class="step-connector"></div>
             <div class="step" data-step="3">
                 <div class="step-number">3</div>
+                <div class="step-label">Custom Fields</div>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step" data-step="4">
+                <div class="step-number">4</div>
                 <div class="step-label">Settings</div>
             </div>
         </div>
 
+        <!-- Step 1: Basic Info -->
         <div class="form-section active" data-section="1">
             <div class="section-header">
                 <h3><i class="fas fa-info-circle"></i> Basic Information</h3>
@@ -90,22 +96,113 @@
                     <small class="help-text">Optional description to help identify this template's purpose</small>
                 </div>
             </div>
+            
+            <!-- Built-in Fields Info -->
+            <div class="builtin-info-box">
+                <div class="builtin-header">
+                    <i class="fas fa-lock"></i>
+                    <strong>Automatic Fields (Built-in)</strong>
+                </div>
+                <p>Every registration form automatically includes:</p>
+                <ul>
+                    <li><i class="fas fa-envelope"></i> <strong>Submitter Email</strong> - Primary contact email (unique per registration)</li>
+                    <li><i class="fas fa-users"></i> <strong>Participant Details</strong> - Name, Roll No, Email for each participant</li>
+                </ul>
+            </div>
         </div>
 
+        <!-- Step 2: Participant Configuration -->
         <div class="form-section" data-section="2">
             <div class="section-header">
-                <h3><i class="fas fa-list"></i> Form Fields</h3>
-                <p>Add the fields you want to collect from registrants</p>
+                <h3><i class="fas fa-users"></i> Participant Configuration</h3>
+                <p>Define how many participants can register together</p>
+            </div>
+            
+            <div class="participant-config-card">
+                <div class="config-header">
+                    <i class="fas fa-user-friends"></i>
+                    <div>
+                        <h4>Team Size Settings</h4>
+                        <p>Each participant will provide: Name, Roll Number, Email</p>
+                    </div>
+                </div>
+                
+                <div class="participant-grid">
+                    <div class="form-group">
+                        <label for="minParticipants">
+                            <i class="fas fa-user-minus"></i> Minimum Participants *
+                        </label>
+                        <input type="number" id="minParticipants" name="min_participants" class="form-input" 
+                               value="1" min="1" max="20" required onchange="updateParticipantPreview()">
+                        <small class="help-text">Minimum team members required (min: 1)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="maxParticipants">
+                            <i class="fas fa-user-plus"></i> Maximum Participants *
+                        </label>
+                        <input type="number" id="maxParticipants" name="max_participants" class="form-input" 
+                               value="1" min="1" max="20" required onchange="updateParticipantPreview()">
+                        <small class="help-text">Maximum team members allowed (max: 20)</small>
+                    </div>
+                </div>
+                
+                <!-- Participant Preview -->
+                <div class="participant-preview">
+                    <div class="preview-header">
+                        <i class="fas fa-eye"></i>
+                        <strong>Preview: What participants will fill</strong>
+                    </div>
+                    <div id="participantPreview" class="preview-content">
+                        <!-- Dynamic preview content -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Templates -->
+            <div class="quick-templates">
+                <p><strong>Quick Templates:</strong></p>
+                <div class="template-buttons">
+                    <button type="button" class="template-btn" onclick="setParticipants(1, 1)">
+                        <i class="fas fa-user"></i> Solo (1)
+                    </button>
+                    <button type="button" class="template-btn" onclick="setParticipants(2, 2)">
+                        <i class="fas fa-user-friends"></i> Duo (2)
+                    </button>
+                    <button type="button" class="template-btn" onclick="setParticipants(2, 4)">
+                        <i class="fas fa-users"></i> Small Team (2-4)
+                    </button>
+                    <button type="button" class="template-btn" onclick="setParticipants(3, 5)">
+                        <i class="fas fa-users"></i> Medium Team (3-5)
+                    </button>
+                    <button type="button" class="template-btn" onclick="setParticipants(4, 6)">
+                        <i class="fas fa-users-cog"></i> Large Team (4-6)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Custom Fields -->
+        <div class="form-section" data-section="3">
+            <div class="section-header">
+                <h3><i class="fas fa-list"></i> Custom Fields (Optional)</h3>
+                <p>Add additional fields beyond participant details</p>
+            </div>
+            
+            <div class="custom-fields-info">
+                <i class="fas fa-lightbulb"></i>
+                <span>Examples: Team Name, College Name, Phone Number, T-Shirt Size, etc.</span>
             </div>
             
             <div id="fieldsContainer"></div>
             
             <button type="button" class="btn-add-field" onclick="addField()">
-                <i class="fas fa-plus-circle"></i> Add Field
+                <i class="fas fa-plus-circle"></i> Add Custom Field
             </button>
         </div>
 
-        <div class="form-section" data-section="3">
+        <!-- Step 4: Settings -->
+        <div class="form-section" data-section="4">
             <div class="section-header">
                 <h3><i class="fas fa-cog"></i> Form Settings</h3>
                 <p>Configure additional options</p>
@@ -138,7 +235,7 @@
                     </div>
                 </div>
                 
-                <div id="paymentSettings" style="display: none;">
+                <div id="paymentSettings" style="display: none;" class="payment-settings-box">
                     <div class="form-group">
                         <label for="paymentAmount">
                             <i class="fas fa-rupee-sign"></i> Payment Amount *
@@ -160,7 +257,7 @@
             </div>
         </div>
 
-        <input type="hidden" id="fields" name="fields" value="[]">
+        <input type="hidden" id="customFields" name="custom_fields" value="[]">
 
         <div class="form-navigation">
             <button type="button" class="btn-nav btn-prev" onclick="prevStep()" style="display: none;">
@@ -179,6 +276,55 @@
 <script>
 let fields = [];
 let currentStep = 1;
+const totalSteps = 4;
+
+function setParticipants(min, max) {
+    document.getElementById('minParticipants').value = min;
+    document.getElementById('maxParticipants').value = max;
+    updateParticipantPreview();
+}
+
+function updateParticipantPreview() {
+    const min = parseInt(document.getElementById('minParticipants').value) || 1;
+    const max = parseInt(document.getElementById('maxParticipants').value) || 1;
+    
+    // Ensure max >= min
+    if (max < min) {
+        document.getElementById('maxParticipants').value = min;
+    }
+    
+    const previewDiv = document.getElementById('participantPreview');
+    let html = '';
+    
+    if (min === max) {
+        html = `<p class="preview-text">Registrants will fill details for <strong>${min} participant(s)</strong></p>`;
+    } else {
+        html = `<p class="preview-text">Registrants will choose between <strong>${min} to ${max} participants</strong></p>`;
+    }
+    
+    html += `
+        <div class="preview-fields">
+            <div class="preview-field-group">
+                <span class="field-icon"><i class="fas fa-user"></i></span>
+                <span>Participant Name</span>
+                <span class="field-badge required">Required</span>
+            </div>
+            <div class="preview-field-group">
+                <span class="field-icon"><i class="fas fa-id-card"></i></span>
+                <span>Roll Number</span>
+                <span class="field-badge required">Required</span>
+            </div>
+            <div class="preview-field-group">
+                <span class="field-icon"><i class="fas fa-envelope"></i></span>
+                <span>Participant Email</span>
+                <span class="field-badge required">Required</span>
+            </div>
+        </div>
+        <p class="preview-note">× ${min === max ? min : min + ' to ' + max} participant(s)</p>
+    `;
+    
+    previewDiv.innerHTML = html;
+}
 
 function addField() {
     const fieldId = Date.now();
@@ -188,7 +334,7 @@ function addField() {
             <div class="field-card-header">
                 <div class="field-number">
                     <i class="fas fa-grip-vertical"></i>
-                    <span>Field ${fieldNum}</span>
+                    <span>Custom Field ${fieldNum}</span>
                 </div>
                 <button type="button" class="btn-remove-field" onclick="removeField(${fieldId})">
                     <i class="fas fa-trash-alt"></i>
@@ -198,12 +344,12 @@ function addField() {
                 <div class="field-row">
                     <div class="field-col">
                         <label>Field Name (internal) *</label>
-                        <input type="text" class="form-input field-name" placeholder="e.g., email" required>
-                        <small class="help-text">Used in code/database</small>
+                        <input type="text" class="form-input field-name" placeholder="e.g., college_name" required>
+                        <small class="help-text">Used in code/database (no spaces)</small>
                     </div>
                     <div class="field-col">
                         <label>Field Label (visible) *</label>
-                        <input type="text" class="form-input field-label" placeholder="e.g., Email Address" required>
+                        <input type="text" class="form-input field-label" placeholder="e.g., College Name" required>
                         <small class="help-text">Shown to users</small>
                     </div>
                 </div>
@@ -304,11 +450,17 @@ document.getElementById('registrationFormCreator').addEventListener('submit', fu
         fieldsData.push(field);
     });
     
-    document.getElementById('fields').value = JSON.stringify(fieldsData);
+    document.getElementById('customFields').value = JSON.stringify(fieldsData);
 });
+
 // Multi-step navigation
 function nextStep() {
-    if (currentStep < 3) {
+    // Validate current step before proceeding
+    if (!validateCurrentStep()) {
+        return;
+    }
+    
+    if (currentStep < totalSteps) {
         document.querySelector(`.form-section[data-section="${currentStep}"]`).classList.remove('active');
         document.querySelector(`.step[data-step="${currentStep}"]`).classList.remove('active');
         currentStep++;
@@ -316,6 +468,105 @@ function nextStep() {
         document.querySelector(`.step[data-step="${currentStep}"]`).classList.add('active');
         updateNavButtons();
     }
+}
+
+function validateCurrentStep() {
+    let isValid = true;
+    let errorMessage = '';
+    
+    if (currentStep === 1) {
+        // Validate Basic Info
+        const name = document.getElementById('name').value.trim();
+        if (!name) {
+            errorMessage = 'Please enter a template name';
+            document.getElementById('name').focus();
+            isValid = false;
+        }
+    } else if (currentStep === 2) {
+        // Validate Participants
+        const minP = parseInt(document.getElementById('minParticipants').value);
+        const maxP = parseInt(document.getElementById('maxParticipants').value);
+        
+        if (!minP || minP < 1) {
+            errorMessage = 'Minimum participants must be at least 1';
+            document.getElementById('minParticipants').focus();
+            isValid = false;
+        } else if (!maxP || maxP < 1) {
+            errorMessage = 'Maximum participants must be at least 1';
+            document.getElementById('maxParticipants').focus();
+            isValid = false;
+        } else if (minP > maxP) {
+            errorMessage = 'Minimum participants cannot be greater than maximum';
+            document.getElementById('minParticipants').focus();
+            isValid = false;
+        }
+    } else if (currentStep === 3) {
+        // Validate Custom Fields (if any)
+        const fieldCards = document.querySelectorAll('#fieldsContainer .field-item');
+        for (const card of fieldCards) {
+            const fieldName = card.querySelector('.field-name').value.trim();
+            const fieldLabel = card.querySelector('.field-label').value.trim();
+            
+            if (!fieldName) {
+                errorMessage = 'Please fill in the field name for all custom fields';
+                card.querySelector('.field-name').focus();
+                isValid = false;
+                break;
+            }
+            if (!fieldLabel) {
+                errorMessage = 'Please fill in the label for all custom fields';
+                card.querySelector('.field-label').focus();
+                isValid = false;
+                break;
+            }
+            
+            // Check for valid field name (no spaces, alphanumeric + underscore)
+            if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(fieldName)) {
+                errorMessage = 'Field name must start with a letter and contain only letters, numbers, and underscores';
+                card.querySelector('.field-name').focus();
+                isValid = false;
+                break;
+            }
+            
+            // Check dropdown options
+            const fieldType = card.querySelector('.field-type').value;
+            if (fieldType === 'select') {
+                const options = card.querySelector('.field-options').value.trim();
+                if (!options) {
+                    errorMessage = 'Please provide options for the dropdown field';
+                    card.querySelector('.field-options').focus();
+                    isValid = false;
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!isValid && errorMessage) {
+        showValidationError(errorMessage);
+    }
+    
+    return isValid;
+}
+
+function showValidationError(message) {
+    // Remove existing error
+    const existingError = document.querySelector('.validation-error');
+    if (existingError) existingError.remove();
+    
+    // Create error alert
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'validation-error';
+    errorDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+    errorDiv.style.cssText = 'position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 300px; text-align: center; background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px; border: 1px solid #f5c6cb; animation: slideDown 0.3s ease; display: flex; align-items: center; gap: 0.5rem; justify-content: center;';
+    
+    document.body.appendChild(errorDiv);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        errorDiv.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => errorDiv.remove(), 300);
+    }, 3000);
 }
 
 function prevStep() {
@@ -335,13 +586,9 @@ function updateNavButtons() {
     const submitBtn = document.querySelector('.btn-submit');
     
     prevBtn.style.display = currentStep === 1 ? 'none' : 'flex';
-    nextBtn.style.display = currentStep === 3 ? 'none' : 'flex';
-    submitBtn.style.display = currentStep === 3 ? 'flex' : 'none';
+    nextBtn.style.display = currentStep === totalSteps ? 'none' : 'flex';
+    submitBtn.style.display = currentStep === totalSteps ? 'flex' : 'none';
 }
-
-// Endpoint auto-generation
-// Initialize
-addField();
 
 function togglePaymentSettings() {
     const paymentEnabled = document.getElementById('paymentEnabled').checked;
@@ -356,6 +603,9 @@ function togglePaymentSettings() {
         paymentAmount.required = false;
     }
 }
+
+// Initialize
+updateParticipantPreview();
 </script>
 
 <style>
@@ -373,6 +623,8 @@ function togglePaymentSettings() {
     background: var(--card-bg, white);
     border-radius: 16px;
     border: 1px solid var(--border-color, #e2e8f0);
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 .step {
@@ -419,10 +671,10 @@ function togglePaymentSettings() {
 }
 
 .step-connector {
-    width: 80px;
+    width: 50px;
     height: 2px;
     background: #e2e8f0;
-    margin: 0 1rem;
+    margin: 0 0.5rem;
 }
 
 .form-section {
@@ -441,14 +693,18 @@ function togglePaymentSettings() {
 }
 
 @keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translate(-50%, -20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes slideUp {
+    from { opacity: 1; transform: translate(-50%, 0); }
+    to { opacity: 0; transform: translate(-50%, -20px); }
 }
 
 .section-header {
@@ -492,16 +748,6 @@ function togglePaymentSettings() {
     gap: 0.5rem;
 }
 
-.auto-badge {
-    background: #dbeafe;
-    color: #1e40af;
-    padding: 0.25rem 0.6rem;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-left: auto;
-}
-
 .form-input {
     padding: 0.85rem 1rem;
     border: 1px solid var(--border-color, #e2e8f0);
@@ -523,18 +769,206 @@ function togglePaymentSettings() {
     color: var(--text-secondary, #64748b);
 }
 
-.endpoint-preview {
-    background: var(--code-bg, #f1f5f9);
-    padding: 0.85rem 1rem;
+/* Built-in Info Box */
+.builtin-info-box {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.05), rgba(59, 130, 246, 0.1));
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 12px;
+}
+
+.builtin-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    color: #2563eb;
+}
+
+.builtin-info-box p {
+    color: var(--text-secondary, #64748b);
+    margin-bottom: 0.75rem;
+}
+
+.builtin-info-box ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.builtin-info-box li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    color: var(--text-primary, #0f172a);
+}
+
+.builtin-info-box li i {
+    color: #2563eb;
+    width: 20px;
+}
+
+/* Participant Config Card */
+.participant-config-card {
+    background: var(--card-bg, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 14px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.config-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+}
+
+.config-header i {
+    font-size: 1.5rem;
+    color: #2563eb;
+    margin-top: 0.25rem;
+}
+
+.config-header h4 {
+    margin: 0;
+    color: var(--text-primary, #0f172a);
+    font-size: 1.1rem;
+}
+
+.config-header p {
+    margin: 0.25rem 0 0;
+    color: var(--text-secondary, #64748b);
+    font-size: 0.9rem;
+}
+
+.participant-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Participant Preview */
+.participant-preview {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(16, 185, 129, 0.1));
+    border: 1px dashed rgba(34, 197, 94, 0.3);
+    border-radius: 10px;
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #059669;
+    margin-bottom: 1rem;
+}
+
+.preview-text {
+    color: var(--text-primary, #0f172a);
+    margin-bottom: 1rem;
+}
+
+.preview-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.preview-field-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: white;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.field-icon {
+    color: #64748b;
+    width: 24px;
+}
+
+.field-badge {
+    margin-left: auto;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.field-badge.required {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.preview-note {
+    margin-top: 1rem;
+    text-align: center;
+    color: #059669;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Quick Templates */
+.quick-templates {
+    padding: 1rem;
+    background: var(--card-bg, #f8fafc);
     border-radius: 10px;
     border: 1px solid var(--border-color, #e2e8f0);
 }
 
-.endpoint-preview code {
-    color: var(--code-color, #2563eb);
-    font-weight: 600;
+.quick-templates p {
+    margin: 0 0 0.75rem;
+    color: var(--text-secondary, #64748b);
 }
 
+.template-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.template-btn {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    color: var(--text-primary, #0f172a);
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.template-btn:hover {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+/* Custom Fields Info */
+.custom-fields-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    color: #b45309;
+}
+
+/* Field Card */
 .field-card {
     background: var(--card-bg, #f8fafc);
     border: 1px solid var(--border-color, #e2e8f0);
@@ -664,6 +1098,7 @@ function togglePaymentSettings() {
     box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
+/* Toggle Group */
 .toggle-group {
     background: var(--card-bg, #f8fafc);
     border: 1px solid var(--border-color, #e2e8f0);
@@ -689,6 +1124,7 @@ function togglePaymentSettings() {
     border-radius: 999px;
     position: relative;
     transition: background 0.3s ease;
+    flex-shrink: 0;
 }
 
 .toggle-slider::after {
@@ -725,6 +1161,15 @@ function togglePaymentSettings() {
     color: var(--text-secondary, #64748b);
 }
 
+.payment-settings-box {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(16, 185, 129, 0.1));
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 12px;
+}
+
+/* Navigation */
 .form-navigation {
     display: flex;
     justify-content: space-between;
@@ -773,7 +1218,10 @@ function togglePaymentSettings() {
 /* Dark theme */
 body[data-theme='dark'] .section-header h3,
 body[data-theme='dark'] .field-number,
-body[data-theme='dark'] .toggle-text strong {
+body[data-theme='dark'] .toggle-text strong,
+body[data-theme='dark'] .config-header h4,
+body[data-theme='dark'] .preview-text,
+body[data-theme='dark'] .builtin-info-box li {
     color: #f1f5f9;
 }
 
@@ -781,40 +1229,53 @@ body[data-theme='dark'] .section-header p,
 body[data-theme='dark'] .help-text,
 body[data-theme='dark'] .step-label,
 body[data-theme='dark'] .field-col label,
-body[data-theme='dark'] .toggle-text small {
+body[data-theme='dark'] .toggle-text small,
+body[data-theme='dark'] .config-header p,
+body[data-theme='dark'] .quick-templates p,
+body[data-theme='dark'] .builtin-info-box p {
     color: #94a3b8;
 }
 
 body[data-theme='dark'] .progress-steps,
 body[data-theme='dark'] .form-section,
 body[data-theme='dark'] .form-navigation,
-body[data-theme='dark'] .toggle-group {
+body[data-theme='dark'] .toggle-group,
+body[data-theme='dark'] .quick-templates {
     background: #0f172a;
     border-color: #1e293b;
 }
 
-body[data-theme='dark'] .field-card {
+body[data-theme='dark'] .field-card,
+body[data-theme='dark'] .participant-config-card {
     background: #0b1120;
+    border-color: #1e293b;
 }
 
-body[data-theme='dark'] .form-input,
-body[data-theme='dark'] .endpoint-preview {
+body[data-theme='dark'] .form-input {
     background: #0b1120;
     border-color: #1e293b;
     color: #f1f5f9;
 }
 
-body[data-theme='dark'] .endpoint-preview code {
-    color: #60a5fa;
+body[data-theme='dark'] .btn-prev,
+body[data-theme='dark'] .template-btn {
+    background: #0b1120;
+    color: #f1f5f9;
+    border-color: #1e293b;
 }
 
-body[data-theme='dark'] .btn-prev {
-    background: #0b1120;
+body[data-theme='dark'] .template-btn:hover {
+    background: #2563eb;
+    color: white;
+}
+
+body[data-theme='dark'] .preview-field-group {
+    background: #1e293b;
     color: #f1f5f9;
 }
 
 @media (max-width: 768px) {
-    .field-row {
+    .field-row, .participant-grid {
         grid-template-columns: 1fr;
     }
     
@@ -824,28 +1285,17 @@ body[data-theme='dark'] .btn-prev {
     
     .step-connector {
         width: 2px;
-        height: 30px;
-        margin: 0.5rem 0;
+        height: 20px;
+        margin: 0.25rem 0;
     }
-}
-
-.endpoint-row {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-}
-
-.btn-outline {
-    background: transparent;
-    border: 1px solid #ced4da;
-    color: #495057;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
-    white-space: nowrap;
-}
-
-.btn-outline:hover {
-    background: #f1f3f5;
+    
+    .template-buttons {
+        flex-direction: column;
+    }
+    
+    .template-btn {
+        justify-content: center;
+    }
 }
 </style>
     </div>

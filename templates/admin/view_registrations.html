@@ -54,16 +54,104 @@
             <a href="{{ url_for('admin_export_registrations', event_id=event.id) }}" class="btn btn-success">
                 <i class="fas fa-file-excel"></i> Export to Excel
             </a>
+            
+            <!-- Send Attendance Emails Button -->
+            <button type="button" class="btn btn-info" onclick="showSendEmailsModal()" style="margin-left: 10px;">
+                <i class="fas fa-paper-plane"></i> Send Attendance Emails
+            </button>
             {% endif %}
         </div>
 
+        <!-- Send Attendance Emails Modal -->
+        <div id="sendEmailsModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content" style="max-width: 500px; border-radius: 16px; overflow: hidden;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 1.5rem; border: none;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-paper-plane" style="font-size: 1.25rem; color: white;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; color: white; font-size: 1.25rem;">Send Attendance Emails</h3>
+                            <p style="margin: 0.25rem 0 0 0; color: rgba(255,255,255,0.8); font-size: 0.85rem;">Notify all participants</p>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-close" onclick="closeSendEmailsModal()" style="color: white; opacity: 0.8;">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08)); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                            <i class="fas fa-calendar-check" style="color: #6366f1; font-size: 1.1rem;"></i>
+                            <span style="font-weight: 600; color: var(--admin-text);">{{ event.name }}</span>
+                        </div>
+                        <p style="margin: 0; color: var(--admin-text-secondary); font-size: 0.9rem;">Each participant will receive an email with their attendance verification status and a shareable link.</p>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+                        <div style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 10px; padding: 1rem; text-align: center; color: white;">
+                            <div style="font-size: 1.75rem; font-weight: 700;">{{ registrations|selectattr('attendance_status', 'equalto', 'entered')|list|length }}</div>
+                            <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 0.25rem;">Fully Present</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 10px; padding: 1rem; text-align: center; color: white;">
+                            <div style="font-size: 1.75rem; font-weight: 700;">{{ registrations|selectattr('attendance_status', 'equalto', 'partially_present')|list|length }}</div>
+                            <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 0.25rem;">Partial</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #64748b, #475569); border-radius: 10px; padding: 1rem; text-align: center; color: white;">
+                            <div style="font-size: 1.75rem; font-weight: 700;">{{ registrations|selectattr('attendance_status', 'equalto', 'not_entered')|list|length }}</div>
+                            <div style="font-size: 0.75rem; opacity: 0.9; margin-top: 0.25rem;">Not Entered</div>
+                        </div>
+                    </div>
+                    
+                    <div style="background: rgba(2, 132, 199, 0.1); border: 1px solid rgba(2, 132, 199, 0.3); border-radius: 10px; padding: 1rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                        <i class="fas fa-users" style="color: #0284c7; margin-top: 2px;"></i>
+                        <div>
+                            <strong style="color: var(--admin-primary); font-size: 0.9rem;">Sending to all {{ registrations|length }} participants</strong>
+                            <p style="margin: 0.25rem 0 0 0; color: var(--admin-text-secondary); font-size: 0.8rem;">Everyone will receive their attendance status via email.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 1rem 1.5rem; background: var(--admin-bg-light); border-top: 1px solid var(--admin-border); display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeSendEmailsModal()" style="border-radius: 8px; padding: 0.6rem 1.25rem;">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="sendAttendanceEmails()" id="sendEmailsBtn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 8px; padding: 0.6rem 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-paper-plane"></i> Send to All ({{ registrations|length }})
+                    </button>
+                </div>
+            </div>
+        </div>
+
 <div class="info-card">
-    <h3>Event: {{ event.name }}</h3>
-    <p><strong>Total Registrations:</strong> {{ registrations|length }}</p>
-    {% if registrations %}
-    <p><strong>Entered:</strong> {{ registrations|selectattr('attendance_status', 'equalto', 'entered')|list|length }}</p>
-    <p><strong>Not Entered:</strong> {{ registrations|rejectattr('attendance_status', 'equalto', 'entered')|list|length }}</p>
-    {% endif %}
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h3>Event: {{ event.name }}</h3>
+            <p><strong>Total Registrations:</strong> {{ registrations|length }}</p>
+            {% if registrations %}
+            <p><strong>Fully Present:</strong> {{ registrations|selectattr('attendance_status', 'equalto', 'entered')|list|length }}</p>
+            <p><strong>Partially Present:</strong> {{ registrations|selectattr('attendance_status', 'equalto', 'partially_present')|list|length }}</p>
+            <p><strong>Not Entered:</strong> {{ registrations|selectattr('attendance_status', 'equalto', 'not_entered')|list|length }}</p>
+            {% endif %}
+        </div>
+        
+        <!-- Registration Toggle -->
+        <div class="registration-toggle-card" style="background: var(--bg-secondary); border-radius: 12px; padding: 1rem 1.5rem; border: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div>
+                    <p style="margin: 0; font-weight: 600; font-size: 0.9rem; color: var(--text-secondary);">Allow Registrations</p>
+                    <p id="regStatusText" style="margin: 0.25rem 0 0 0; font-size: 0.85rem; color: {{ 'var(--success-color)' if event.allow_registration != false else 'var(--danger-color)' }};">
+                        {% if event.allow_registration != false %}
+                            <i class="fas fa-check-circle"></i> Open
+                        {% else %}
+                            <i class="fas fa-times-circle"></i> Closed
+                        {% endif %}
+                    </p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="allowRegToggle" {{ 'checked' if event.allow_registration != false else '' }} onchange="toggleRegistration()">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if registrations %}
@@ -76,9 +164,24 @@
                 <th style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); font-weight: bold;">
                     <i class="fas fa-envelope"></i> Submitter Email
                 </th>
+                <!-- Participant columns (new structure) -->
+                {% if form.min_participants is defined %}
+                <th style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(16, 185, 129, 0.1));">
+                    <i class="fas fa-users"></i> Participants
+                </th>
+                {% endif %}
+                <!-- Custom fields (new structure) -->
+                {% if form.custom_fields is defined %}
+                {% for field in form.custom_fields %}
+                <th>{{ field.label }}</th>
+                {% endfor %}
+                {% endif %}
+                <!-- Legacy fields (old structure) -->
+                {% if form.fields is defined %}
                 {% for field in form.fields %}
                 <th>{{ field.label }}</th>
                 {% endfor %}
+                {% endif %}
                 <th>Payment Status</th>
                 <th>Attendance Status</th>
                 <th>Actions</th>
@@ -92,9 +195,51 @@
                 <td style="font-weight: 600; color: var(--primary-color);">
                     {{ reg.submitter_email or '-' }}
                 </td>
+                <!-- Participant data (new structure) -->
+                {% if form.min_participants is defined %}
+                <td>
+                    {% if reg.participants %}
+                    <div class="participants-list">
+                        {% for p in reg.participants %}
+                        <div class="participant-item">
+                            <strong>{{ loop.index }}.</strong> {{ p.name }}
+                            <span class="participant-detail"><i class="fas fa-id-card"></i> {{ p.roll_no }}</span>
+                            <span class="participant-detail"><i class="fas fa-envelope"></i> {{ p.email }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <!-- Fallback for old participant_X_name format -->
+                    {% set num = reg.num_participants|default(1)|int %}
+                    <div class="participants-list">
+                        {% for i in range(1, num + 1) %}
+                        {% set pname = reg['participant_' ~ i ~ '_name'] %}
+                        {% set proll = reg['participant_' ~ i ~ '_roll'] %}
+                        {% set pemail = reg['participant_' ~ i ~ '_email'] %}
+                        {% if pname %}
+                        <div class="participant-item">
+                            <strong>{{ i }}.</strong> {{ pname }}
+                            {% if proll %}<span class="participant-detail"><i class="fas fa-id-card"></i> {{ proll }}</span>{% endif %}
+                            {% if pemail %}<span class="participant-detail"><i class="fas fa-envelope"></i> {{ pemail }}</span>{% endif %}
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </td>
+                {% endif %}
+                <!-- Custom fields (new structure) -->
+                {% if form.custom_fields is defined %}
+                {% for field in form.custom_fields %}
+                <td>{{ reg[field.name] or '-' }}</td>
+                {% endfor %}
+                {% endif %}
+                <!-- Legacy fields (old structure) -->
+                {% if form.fields is defined %}
                 {% for field in form.fields %}
                 <td>{{ reg[field.name] or '-' }}</td>
                 {% endfor %}
+                {% endif %}
                 <td>
                     {% if reg.payment_status == 'completed' %}
                     <span class="badge badge-success">
@@ -117,12 +262,27 @@
                 <td>
                     {% if reg.attendance_status == 'entered' %}
                     <span class="badge badge-success">
-                        <i class="fas fa-check-circle"></i> Entered
+                        <i class="fas fa-check-circle"></i> Fully Present
                     </span>
                     <br>
-                    <small style="color: #6c757d;">{{ reg.entry_time }}</small>
-                    {% else %}
+                    <small style="color: var(--admin-text-secondary);">{{ reg.entry_time }}</small>
+                    {% if reg.marked_by %}
+                    <br><small style="color: var(--admin-text-secondary);">By: {{ reg.marked_by }}</small>
+                    {% endif %}
+                    {% elif reg.attendance_status == 'partially_present' %}
                     <span class="badge badge-warning">
+                        <i class="fas fa-minus-circle"></i> Partially Present
+                    </span>
+                    <br>
+                    <small style="color: var(--admin-text-secondary);">{{ reg.entry_time }}</small>
+                    {% if reg.attendance_comment %}
+                    <br><small style="color: #f59e0b; font-style: italic;">{{ reg.attendance_comment }}</small>
+                    {% endif %}
+                    {% if reg.marked_by %}
+                    <br><small style="color: var(--admin-text-secondary);">By: {{ reg.marked_by }}</small>
+                    {% endif %}
+                    {% else %}
+                    <span class="badge badge-secondary">
                         <i class="fas fa-clock"></i> Not Entered
                     </span>
                     {% endif %}
@@ -324,9 +484,495 @@
     background: var(--table-header-bg);
     color: var(--text-secondary);
 }
+
+/* Participants List Styles */
+.participants-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.participant-item {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(16, 185, 129, 0.1));
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.participant-item strong {
+    color: #059669;
+    margin-right: 0.25rem;
+}
+
+.participant-detail {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+}
+
+.participant-detail i {
+    width: 16px;
+    color: #64748b;
+    margin-right: 0.25rem;
+}
+
+[data-theme="dark"] .participant-item {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+[data-theme="dark"] .participant-item strong {
+    color: #34d399;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 550px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.modal-header h3 i {
+    color: #667eea;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 5px 10px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: var(--table-header-bg);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 25px;
+}
+
+.modal-body p {
+    color: var(--text-primary);
+    margin: 0 0 10px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px 25px;
+    border-top: 1px solid var(--border-color);
+}
+
+.radio-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 15px;
+    background: var(--table-header-bg);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.radio-option:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+}
+
+.radio-option input[type="radio"] {
+    margin-top: 3px;
+    accent-color: #667eea;
+}
+
+.radio-option span {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.stats-preview {
+    background: var(--table-header-bg);
+    border-radius: 10px;
+    padding: 15px 20px;
+    margin-top: 15px;
+}
+
+.stats-preview p {
+    margin: 0 0 10px;
+    font-weight: 600;
+}
+
+.stats-preview ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.stats-preview li {
+    color: var(--text-secondary);
+    margin: 5px 0;
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+}
+
+.btn-info:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background: var(--table-header-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+}
+
+.alert-info {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1));
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #1d4ed8;
+    padding: 12px 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.alert-info i {
+    margin-right: 8px;
+}
+
+[data-theme="dark"] .alert-info {
+    color: #60a5fa;
+}
+
+/* Loading spinner */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Toast Notification Styles */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    min-width: 300px;
+    max-width: 450px;
+    padding: 16px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+    font-weight: 500;
+}
+
+.toast-notification.show {
+    transform: translateX(0);
+}
+
+.toast-notification i {
+    font-size: 1.25rem;
+}
+
+.toast-notification span {
+    flex: 1;
+    line-height: 1.4;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    opacity: 0.7;
+    padding: 0 5px;
+    margin-left: 10px;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+.toast-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.toast-error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.toast-info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+}
+
+.toast-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: 0.3s;
+    border-radius: 28px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+.toggle-switch input:disabled + .toggle-slider {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 </style>
     </div>
     
     <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+    
+    <script>
+    function showSendEmailsModal() {
+        document.getElementById('sendEmailsModal').style.display = 'flex';
+    }
+    
+    function closeSendEmailsModal() {
+        document.getElementById('sendEmailsModal').style.display = 'none';
+    }
+    
+    // Toggle registration on/off
+    function toggleRegistration() {
+        const toggle = document.getElementById('allowRegToggle');
+        const statusText = document.getElementById('regStatusText');
+        
+        // Disable toggle during request
+        toggle.disabled = true;
+        
+        fetch('{{ url_for("admin_toggle_registration", event_id=event.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update UI based on new status
+                if (data.allow_registration) {
+                    statusText.innerHTML = '<i class="fas fa-check-circle"></i> Open';
+                    statusText.style.color = 'var(--success-color)';
+                    toggle.checked = true;
+                } else {
+                    statusText.innerHTML = '<i class="fas fa-times-circle"></i> Closed';
+                    statusText.style.color = 'var(--danger-color)';
+                    toggle.checked = false;
+                }
+                showToast(data.message, 'success');
+            } else {
+                // Revert toggle on error
+                toggle.checked = !toggle.checked;
+                showToast(data.message || 'Failed to update registration status', 'error');
+            }
+        })
+        .catch(error => {
+            // Revert toggle on error
+            toggle.checked = !toggle.checked;
+            showToast('Error updating registration status', 'error');
+            console.error('Error:', error);
+        })
+        .finally(() => {
+            toggle.disabled = false;
+        });
+    }
+    
+    // Close modal when clicking outside
+    document.getElementById('sendEmailsModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeSendEmailsModal();
+        }
+    });
+    
+    // Toast notification system
+    function showToast(message, type = 'success', duration = 5000) {
+        // Remove existing toasts
+        const existingToast = document.querySelector('.toast-notification');
+        if (existingToast) existingToast.remove();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        
+        const icons = {
+            success: 'fa-check-circle',
+            error: 'fa-times-circle',
+            info: 'fa-info-circle',
+            warning: 'fa-exclamation-triangle'
+        };
+        
+        toast.innerHTML = `
+            <i class="fas ${icons[type] || icons.info}"></i>
+            <span>${message}</span>
+            <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Trigger animation
+        setTimeout(() => toast.classList.add('show'), 10);
+        
+        // Auto remove
+        if (duration > 0) {
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+    }
+    
+    function sendAttendanceEmails() {
+        const btn = document.getElementById('sendEmailsBtn');
+        const originalText = btn.innerHTML;
+        
+        // Show loading state
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+        
+        // Send request to backend - always send to all participants
+        fetch('{{ url_for("admin_send_attendance_emails", event_id=event.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filter: 'all' })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
+            closeSendEmailsModal();
+            
+            if (data.success) {
+                showToast(`Successfully sent ${data.sent_count} email(s)! ${data.failed_count > 0 ? data.failed_count + ' failed.' : ''}`, 'success', 6000);
+            } else {
+                showToast(`Error: ${data.message}`, 'error', 8000);
+            }
+        })
+        .catch(error => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
+            closeSendEmailsModal();
+            showToast('An error occurred while sending emails. Please try again.', 'error', 8000);
+            console.error('Error:', error);
+        });
+    }
+    </script>
 </body>
 </html>

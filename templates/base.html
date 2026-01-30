@@ -18,7 +18,7 @@
                     <img src="{{ club_info.logo }}" alt="AICC Logo" onerror="this.style.display='none'">
                     <span>{{ club_info.short_name }}</span>
                 </a>
-                <button class="nav-toggle" id="navToggle">
+                <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
                     <span></span>
                     <span></span>
                     <span></span>
@@ -27,11 +27,12 @@
                     <li><a href="/" class="nav-link">Home</a></li>
                     <li><a href="/about" class="nav-link">About</a></li>
                     <li><a href="/events" class="nav-link">Events</a></li>
+                    <li><a href="/attendance/check" class="nav-link">Attendance</a></li>
                     <li><a href="/gallery" class="nav-link">Gallery</a></li>
                     <li><a href="/members" class="nav-link">Members</a></li>
                     <li><a href="#contact" class="nav-link">Contact</a></li>
                     <li>
-                        <button id="theme-toggle-main" class="theme-toggle-btn">
+                        <button id="theme-toggle-main" class="theme-toggle-btn" aria-label="Toggle theme">
                             <i class="fas fa-moon"></i>
                         </button>
                     </li>
@@ -39,6 +40,7 @@
             </div>
         </div>
     </nav>
+    <div class="nav-overlay" id="navOverlay"></div>
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}

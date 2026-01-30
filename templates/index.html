@@ -118,10 +118,13 @@
 {% block extra_js %}
 <script>
     {% if next_deadline_event %}
-    // Countdown Timer
-    const deadline = new Date('{{ next_deadline_event.registration_deadline.date }}').getTime();
+    // Countdown Timer - set to end of deadline day (23:59:59 IST)
+    const deadlineDate = '{{ next_deadline_event.registration_deadline.date }}';
+    // Create deadline at 23:59:59 IST (UTC+5:30)
+    const deadline = new Date(deadlineDate + 'T23:59:59+05:30').getTime();
     
     function updateCountdown() {
+        // Get current time in IST
         const now = new Date().getTime();
         const distance = deadline - now;
         

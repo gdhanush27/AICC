@@ -1,7 +1,14 @@
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from werkzeug.utils import secure_filename
+
+# IST Timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_now():
+    """Get current datetime in IST"""
+    return datetime.now(IST)
 import os
 import json
 import time
@@ -10,9 +17,155 @@ import requests
 import base64
 import uuid
 import qrcode
+import threading
+import tempfile
+import shutil
+import hmac
+import hashlib
+import logging
+import io
+from html import escape as html_escape
 from io import BytesIO
 from flask_mail import Mail, Message
 from config import ALLOWED_EMAIL_DOMAINS, KEY_ID_RAZOR, KEY_SECRET_RAZOR
+
+# Configure logging instead of print statements
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Thread lock for file operations to prevent race conditions
+_file_locks = {}
+_file_locks_lock = threading.Lock()
+_MAX_FILE_LOCKS = 100  # Prevent unbounded memory growth
+
+def get_file_lock(filepath):
+    """Get or create a lock for a specific file"""
+    with _file_locks_lock:
+        if filepath not in _file_locks:
+            # Clean up old locks if we have too many (simple LRU-style cleanup)
+            if len(_file_locks) >= _MAX_FILE_LOCKS:
+                # Remove locks that aren't currently held
+                to_remove = []
+                for path, lock in list(_file_locks.items()):
+                    if not lock.locked():
+                        to_remove.append(path)
+                        if len(_file_locks) - len(to_remove) < _MAX_FILE_LOCKS // 2:
+                            break
+                for path in to_remove:
+                    del _file_locks[path]
+            _file_locks[filepath] = threading.Lock()
+        return _file_locks[filepath]
+
+def safe_json_read(filepath):
+    """Safely read JSON file with locking"""
+    lock = get_file_lock(filepath)
+    with lock:
+        if not os.path.exists(filepath):
+            return []
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Failed to read JSON from {filepath}: {e}")
+            # Try to recover from backup if exists
+            backup_path = filepath + '.backup'
+            if os.path.exists(backup_path):
+                logger.info(f"Attempting to recover from backup: {backup_path}")
+                try:
+                    with open(backup_path, 'r', encoding='utf-8') as f:
+                        return json.load(f)
+                except:
+                    pass
+            return []
+
+def _write_json_no_lock(filepath, data):
+    """Internal: Write JSON without acquiring lock (caller must hold lock)"""
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    
+    # Create backup of existing file
+    if os.path.exists(filepath):
+        backup_path = filepath + '.backup'
+        try:
+            shutil.copy2(filepath, backup_path)
+        except Exception as e:
+            logger.warning(f"Could not create backup: {e}")
+    
+    # Write to temp file first, then atomic rename
+    dir_name = os.path.dirname(filepath)
+    fd, temp_path = tempfile.mkstemp(suffix='.json', dir=dir_name)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+        
+        # Atomic rename/replace
+        if os.name == 'nt':
+            if os.path.exists(filepath):
+                os.replace(temp_path, filepath)
+            else:
+                os.rename(temp_path, filepath)
+        else:
+            os.rename(temp_path, filepath)
+        
+        logger.debug(f"Successfully wrote JSON to {filepath}")
+        return True
+    except Exception as e:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise e
+
+def safe_json_write(filepath, data):
+    """
+    Safely write JSON file with atomic write and backup.
+    Uses a temp file + rename approach to prevent corruption.
+    """
+    lock = get_file_lock(filepath)
+    with lock:
+        return _write_json_no_lock(filepath, data)
+
+def atomic_add_registration(filepath, new_registration, unique_check_fn=None):
+    """
+    Atomically add a registration to a JSON file.
+    This ensures read-check-write happens in a single lock to prevent race conditions.
+    
+    Args:
+        filepath: Path to the registrations JSON file
+        new_registration: The registration dict to add
+        unique_check_fn: Optional function(registrations, new_reg) -> error_msg or None
+                        Returns error message if duplicate found, None if OK
+    
+    Returns:
+        (success: bool, error_msg: str or None, registrations: list)
+    """
+    lock = get_file_lock(filepath)
+    with lock:
+        # Read existing registrations inside the lock
+        registrations = []
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    registrations = json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.error(f"Failed to read JSON from {filepath}: {e}")
+                registrations = []
+        
+        # Check for duplicates if check function provided
+        if unique_check_fn:
+            error_msg = unique_check_fn(registrations, new_registration)
+            if error_msg:
+                return (False, error_msg, registrations)
+        
+        # Assign sequential ID
+        new_registration['id'] = len(registrations) + 1
+        
+        # Append and write - all within the same lock
+        registrations.append(new_registration)
+        
+        try:
+            _write_json_no_lock(filepath, registrations)
+            return (True, None, registrations)
+        except Exception as e:
+            logger.error(f"Failed to save registration: {e}")
+            return (False, f"Failed to save registration: {str(e)}", registrations)
 
 # Get the absolute path of the directory containing this file (AICC/)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -70,7 +223,8 @@ initialize_app_structure()
 app = Flask(__name__, 
             template_folder=os.path.join(PROJECT_ROOT, 'templates'),
             static_folder=os.path.join(PROJECT_ROOT, 'static'))
-app.secret_key = 'your-secret-key-change-this-in-production'  # ⚠️ CHANGE THIS IN PRODUCTION!
+# SECURITY: Use environment variable for secret key in production
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-secret-key-change-this-in-production')
 app.config['UPLOAD_FOLDER'] = os.path.join(PROJECT_ROOT, 'static/uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching in development
@@ -122,10 +276,13 @@ def cache_bust_filter(url):
 # Make cache_bust available in all templates
 app.jinja_env.filters['cache_bust'] = cache_bust_filter
 
-# Admin credentials - ⚠️ CHANGE THESE IN PRODUCTION!
-# Use environment variables or database authentication for production
-ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD = 'password'  # ⚠️ CHANGE THIS PASSWORD!
+# Make datetime.now available in templates
+app.jinja_env.globals['now'] = datetime.now
+
+# Admin credentials - loaded from environment variables with insecure defaults
+# SECURITY: Set ADMIN_USERNAME and ADMIN_PASSWORD environment variables in production
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'password')
 
 # Helper function for file uploads
 def allowed_file(filename):
@@ -195,7 +352,7 @@ def generate_qr_code(data_string):
         
         return img_base64
     except Exception as e:
-        print(f"QR code generation error: {e}")
+        logger.error(f"QR code generation error: {e}")
         return None
 
 def send_registration_email(email, registration_id, qr_code_base64, event_name, registration_data):
@@ -209,6 +366,13 @@ def send_registration_email(email, registration_id, qr_code_base64, event_name, 
         )
         
         # Create HTML email body with CID reference for QR code
+        # Escape user-provided data to prevent XSS
+        safe_name = html_escape(registration_data.get('name', 'Participant'))
+        safe_event_name = html_escape(event_name)
+        safe_registration_id = html_escape(str(registration_id))
+        safe_club_name = html_escape(CLUB_INFO.get('name', 'AI Coding Club'))
+        safe_college = html_escape(CLUB_INFO.get('college', ''))
+        
         html_body = f"""
         <html>
             <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -217,15 +381,15 @@ def send_registration_email(email, registration_id, qr_code_base64, event_name, 
                 </div>
                 
                 <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px;">
-                    <p style="font-size: 16px; color: #333;">Dear {registration_data.get('name', 'Participant')},</p>
+                    <p style="font-size: 16px; color: #333;">Dear {safe_name},</p>
                     
                     <p style="font-size: 14px; color: #555;">
-                        Thank you for registering for <strong>{event_name}</strong>!
+                        Thank you for registering for <strong>{safe_event_name}</strong>!
                     </p>
                     
                     <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
                         <h3 style="color: #667eea; margin-top: 0;">Registration ID:</h3>
-                        <p style="font-size: 20px; font-weight: bold; color: #333; margin: 10px 0;">{registration_id}</p>
+                        <p style="font-size: 20px; font-weight: bold; color: #333; margin: 10px 0;">{safe_registration_id}</p>
                     </div>
                     
                     <p style="font-size: 14px; color: #555;">
@@ -244,7 +408,7 @@ def send_registration_email(email, registration_id, qr_code_base64, event_name, 
                     
                     <p style="font-size: 12px; color: #999; text-align: center;">
                         This is an automated email. Please do not reply.<br>
-                        {CLUB_INFO.get('name', 'AI Coding Club')} | {CLUB_INFO.get('college', '')}
+                        {safe_club_name} | {safe_college}
                     </p>
                 </div>
             </body>
@@ -267,7 +431,7 @@ def send_registration_email(email, registration_id, qr_code_base64, event_name, 
         mail.send(msg)
         return True
     except Exception as e:
-        print(f"Email sending error: {e}")
+        logger.error(f"Email sending error: {e}")
         return False
 
 def create_razorpay_order(order_id, amount, customer_name, customer_email, customer_phone, return_url):
@@ -356,7 +520,8 @@ def home():
                         except ValueError:
                             continue
                     
-                    if deadline and deadline.date() >= datetime.now().date():
+                    # Using IST for comparison
+                    if deadline and deadline.date() >= get_ist_now().date():
                         valid_deadline_events.append((deadline, event))
                 except Exception as e:
                     pass
@@ -425,6 +590,24 @@ def event_register(event_id):
         flash('This event uses external registration.', 'info')
         return redirect(url_for('event_detail', event_id=event_id))
     
+    # Check if registration is allowed (admin toggle)
+    registration_closed = event.get('allow_registration') == False
+    
+    # Check if registration deadline has passed (using IST)
+    deadline_passed = False
+    deadline_info = event.get('registration_deadline')
+    if deadline_info and deadline_info.get('date'):
+        try:
+            deadline_date = deadline_info['date']
+            if deadline_date.upper() != 'TBA':
+                deadline = datetime.strptime(deadline_date, '%Y-%m-%d')
+                # Registration closes after the deadline day (deadline day is last day to register)
+                # Using IST for comparison
+                if deadline.date() < get_ist_now().date():
+                    deadline_passed = True
+        except ValueError:
+            pass
+    
     # Load form templates
     templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
     try:
@@ -437,7 +620,7 @@ def event_register(event_id):
             template = None
         
         # Generate submit endpoint based on event slug
-        if template:
+        if template and not registration_closed and not deadline_passed:
             event_slug = slugify(event.get('name'))
             submit_endpoint = f"/api/register/{event_slug}"
         else:
@@ -447,6 +630,8 @@ def event_register(event_id):
                              event=event,
                              form=template,
                              submit_endpoint=submit_endpoint,
+                             registration_closed=registration_closed,
+                             deadline_passed=deadline_passed,
                              club_info=CLUB_INFO,
                              contact=CLUB_INFO)
     except Exception as e:
@@ -506,9 +691,76 @@ def api_register_event(event_slug):
             if not template_definition.get('active', False):
                 return jsonify({'error': 'Registration form is inactive'}), 400
 
-            # Validate required fields
+            # NEW: Validate participants (if participant-based template)
+            min_participants = template_definition.get('min_participants', 1)
+            max_participants = template_definition.get('max_participants', 1)
+            
+            if min_participants and max_participants:
+                num_participants = int(data.get('num_participants', min_participants))
+                
+                # Validate participant count
+                if num_participants < min_participants or num_participants > max_participants:
+                    return jsonify({
+                        'error': f'Number of participants must be between {min_participants} and {max_participants}'
+                    }), 400
+                
+                # Collect and validate participant data
+                participants = []
+                for i in range(1, num_participants + 1):
+                    participant_name = data.get(f'participant_{i}_name', '').strip()
+                    participant_roll = data.get(f'participant_{i}_roll', '').strip()
+                    participant_email = data.get(f'participant_{i}_email', '').strip()
+                    
+                    if not participant_name:
+                        return jsonify({
+                            'error': f'Participant {i} name is required'
+                        }), 400
+                    
+                    if not participant_roll:
+                        return jsonify({
+                            'error': f'Participant {i} roll number is required'
+                        }), 400
+                    
+                    if not participant_email:
+                        return jsonify({
+                            'error': f'Participant {i} email is required'
+                        }), 400
+                    
+                    # Validate email format
+                    if not re.match(email_pattern, participant_email):
+                        return jsonify({
+                            'error': f'Participant {i} has invalid email format'
+                        }), 400
+                    
+                    # Validate email domain
+                    p_email_domain = participant_email.split('@')[1].lower()
+                    if p_email_domain not in ALLOWED_EMAIL_DOMAINS:
+                        return jsonify({
+                            'error': f'Participant {i} email domain not allowed. Please use one of: {", ".join(ALLOWED_EMAIL_DOMAINS)}'
+                        }), 400
+                    
+                    participants.append({
+                        'name': participant_name,
+                        'roll_no': participant_roll,
+                        'email': participant_email
+                    })
+                
+                # Store participants array in registration data
+                data['participants'] = participants
+                data['num_participants'] = num_participants
+            
+            # Validate custom fields (new structure)
+            custom_fields = template_definition.get('custom_fields', [])
             missing_fields = []
-            for field in template_definition.get('fields', []):
+            for field in custom_fields:
+                if field.get('required'):
+                    field_name = field.get('name')
+                    if not field_name or not str(data.get(field_name, '')).strip():
+                        missing_fields.append(field.get('label') or field_name)
+            
+            # Also check legacy 'fields' structure for backward compatibility
+            legacy_fields = template_definition.get('fields', [])
+            for field in legacy_fields:
                 if field.get('required'):
                     field_name = field.get('name')
                     if not field_name or not str(data.get(field_name, '')).strip():
@@ -545,6 +797,7 @@ def api_register_event(event_slug):
         # Validate event and registration deadline
         event_id = data.get('event_id')
         event = None
+        events = None  # Will hold the events list for saving
         
         if event_id is not None:
             try:
@@ -564,7 +817,11 @@ def api_register_event(event_slug):
             if event.get('registration_type') not in ['internal']:
                 return jsonify({'error': 'Registration is not enabled for this event'}), 400
             
-            # Check registration deadline
+            # Check if registration is allowed (admin toggle)
+            if event.get('allow_registration') == False:
+                return jsonify({'error': 'Registration is currently closed for this event'}), 400
+            
+            # Check registration deadline (using IST)
             deadline_info = event.get('registration_deadline')
             if deadline_info and deadline_info.get('date'):
                 try:
@@ -572,7 +829,9 @@ def api_register_event(event_slug):
                     # Skip validation for TBA deadlines
                     if deadline_date.upper() != 'TBA':
                         deadline = datetime.strptime(deadline_date, '%Y-%m-%d')
-                        if deadline.date() < datetime.now().date():
+                        # Registration closes after the deadline day (deadline day is last day to register)
+                        # Using IST for comparison
+                        if deadline.date() < get_ist_now().date():
                             return jsonify({'error': 'Registration deadline has passed'}), 400
                 except ValueError:
                     pass
@@ -587,77 +846,72 @@ def api_register_event(event_slug):
         # Check if event already has a registration file path
         if event and event.get('registration_file'):
             reg_file = os.path.join(PROJECT_ROOT, event['registration_file'])
+            logger.debug(f"Using existing registration_file from event: {reg_file}")
         else:
-            # Create new timestamped registration file
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            reg_filename = f'{event_slug}_{timestamp}_registrations.json'
+            # Create new registration file with event ID for uniqueness
+            event_id = event.get('id', '') if event else ''
+            reg_filename = f'{event_slug}_{event_id}_registrations.json'
             reg_file = os.path.join(registrations_dir, reg_filename)
+            logger.debug(f"Creating new registration file: {reg_file}")
             
             # Update event with registration file path
             if event:
                 event['registration_file'] = f'data/registrations/{reg_filename}'
-                # Save events.json
+                # Save events.json with the updated event using safe write
                 events_file = os.path.join(PROJECT_ROOT, 'data', 'events.json')
-                with open(events_file, 'w') as f:
-                    json.dump(EVENTS, f, indent=4)
+                safe_json_write(events_file, events)
+                # Reload global EVENTS
+                global EVENTS
+                EVENTS = events
         
-        # Load existing registrations or create new list
-        registrations = []
-        if os.path.exists(reg_file):
-            with open(reg_file, 'r') as f:
-                registrations = json.load(f)
+        # NOTE: Duplicate checking is done ONLY in atomic_add_registration to prevent race conditions.
+        # Previously there was an early check here, but it caused timing issues where:
+        # - Request A passed early check, then saved successfully
+        # - Request B passed early check (before A saved), then failed at atomic check
+        # - User saw "already registered" error but registration was actually saved by Request A
+        # The atomic operation handles all duplicate checking within a single lock.
         
-        # MANDATORY CHECK: SUBMITTER EMAIL MUST BE UNIQUE (DEFAULT FOR ALL FORMS)
-        submitter_email = data.get('submitter_email', '').strip().lower()
-        if submitter_email:
-            for reg in registrations:
-                existing_email = reg.get('submitter_email', '').strip().lower()
-                if existing_email == submitter_email:
-                    return jsonify({
-                        'error': 'Email already registered',
-                        'details': f'The email {submitter_email} is already registered for this event. Each email can only register once.'
-                    }), 400
-        
-        # CHECK FOR OTHER DUPLICATE UNIQUE FIELDS (from form template)
-        if template_definition:
-            for field in template_definition.get('fields', []):
-                if field.get('type') == 'email' and field.get('unique', False):
-                    field_name = field.get('name')
-                    # Skip if it's the submitter_email (already checked above)
-                    if field_name == 'submitter_email':
-                        continue
-                    
-                    email_value = data.get(field_name, '').strip().lower()
-                    
-                    if email_value:
-                        # Check if email already exists in registrations
-                        for reg in registrations:
-                            existing_email = reg.get(field_name, '').strip().lower()
-                            if existing_email == email_value:
-                                return jsonify({
-                                    'error': f'{field.get("label", field_name)} already registered',
-                                    'details': f'The email {email_value} is already registered for this event.'
-                                }), 400
-        
-        # Add timestamp and unique registration ID to registration
+        # Prepare registration data with UUID FIRST (before any file operations)
         registration_uuid = str(uuid.uuid4())
         data['timestamp'] = datetime.now().isoformat()
-        data['id'] = len(registrations) + 1
         data['registration_id'] = registration_uuid
         data['payment_status'] = 'pending' if template_definition and template_definition.get('payment_enabled') else 'not_required'
-        data['attendance_status'] = 'not_entered'  # Track attendance
-        data['entry_time'] = None  # When they entered
-        data['marked_by'] = None  # Admin who marked entry
+        data['attendance_status'] = 'not_entered'
+        data['entry_time'] = None
+        data['marked_by'] = None
         
         # Generate QR code for registration with admin verification URL
         event_name = event.get('name', 'Event') if event else 'Event'
         event_id_param = event.get('id', '') if event else ''
-        # Create URL for admin to verify entry (host_url already has trailing slash)
         qr_url = f"{request.host_url}admin/verify-entry?regid={registration_uuid}&email={data.get('submitter_email', '')}&event_id={event_id_param}"
         qr_code_base64 = generate_qr_code(qr_url)
         
         if qr_code_base64:
             data['qr_code'] = qr_code_base64
+        
+        # Define duplicate check function for atomic operation
+        def check_duplicates(registrations, new_reg):
+            submitter_email = new_reg.get('submitter_email', '').strip().lower()
+            if submitter_email:
+                for reg in registrations:
+                    existing_email = reg.get('submitter_email', '').strip().lower()
+                    if existing_email == submitter_email:
+                        return f'Email already registered: {submitter_email}'
+            
+            # Check other unique fields from template
+            if template_definition:
+                for field in template_definition.get('fields', []):
+                    if field.get('type') == 'email' and field.get('unique', False):
+                        field_name = field.get('name')
+                        if field_name == 'submitter_email':
+                            continue
+                        email_value = new_reg.get(field_name, '').strip().lower()
+                        if email_value:
+                            for reg in registrations:
+                                existing_email = reg.get(field_name, '').strip().lower()
+                                if existing_email == email_value:
+                                    return f'{field.get("label", field_name)} already registered: {email_value}'
+            return None  # No duplicates found
         
         # Check if payment is required
         if template_definition and template_definition.get('payment_enabled'):
@@ -673,7 +927,8 @@ def api_register_event(event_slug):
                             'details': 'Please provide a valid phone number'
                         }), 400
                     
-                    order_id = f"ORD_{event_slug}_{data['id']}_{int(time.time())}"
+                    # BUG FIX: Use registration_uuid instead of data['id'] which isn't set yet
+                    order_id = f"ORD_{event_slug}_{registration_uuid[:8]}_{int(time.time())}"
                     payment_order = create_razorpay_order(
                         order_id=order_id,
                         amount=payment_amount,
@@ -722,37 +977,43 @@ def api_register_event(event_slug):
                         'details': 'Unable to process payment. Please try again or contact support.'
                     }), 400
         
-        # No payment required - save registration
-        # Append new registration
-        registrations.append(data)
+        # No payment required - save registration using ATOMIC operation
+        # This ensures read-check-write all happens within a single lock
+        logger.debug(f"Saving registration to: {reg_file}")
+        logger.debug(f"Registration ID being saved: {registration_uuid}")
         
-        # Save to file
-        with open(reg_file, 'w') as f:
-            json.dump(registrations, f, indent=4)
+        success, error_msg, _ = atomic_add_registration(reg_file, data, check_duplicates)
         
-        # Send confirmation email with QR code
+        if not success:
+            return jsonify({
+                'error': 'Registration failed',
+                'details': error_msg
+            }), 400
+        
+        logger.debug(f"Registration saved successfully with ID: {registration_uuid}")
+        
+        # Send confirmation email with QR code (use the SAME registration_uuid that was saved)
         email_sent = False
         if qr_code_base64:
             email_sent = send_registration_email(
                 email=data.get('submitter_email'),
-                registration_id=registration_uuid,
+                registration_id=registration_uuid,  # Use the exact same UUID that was saved
                 qr_code_base64=qr_code_base64,
                 event_name=event_name,
                 registration_data=data
             )
         
+        # Return the SAME registration_uuid that was saved to DB and sent in email
         return jsonify({
             'success': True,
             'message': 'Registration submitted successfully!' + (' Confirmation email sent.' if email_sent else ''),
-            'registration_id': registration_uuid,
+            'registration_id': registration_uuid,  # This must match what's in DB
             'email_sent': email_sent,
             'qr_code': qr_code_base64
         }), 200
         
     except Exception as e:
-        print(f"Registration error: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.exception(f"Registration error: {str(e)}")
         return jsonify({'error': 'Failed to process registration', 'details': str(e)}), 500
 
 
@@ -775,8 +1036,7 @@ def payment_verify():
         
         # STEP 1: SERVER-SIDE SIGNATURE VERIFICATION
         # This is critical security step - never trust client-side verification alone
-        import hmac
-        import hashlib
+        # hmac and hashlib are imported at module level
         
         message = f"{razorpay_order_id}|{razorpay_payment_id}"
         expected_signature = hmac.new(
@@ -787,7 +1047,7 @@ def payment_verify():
         
         if expected_signature != razorpay_signature:
             # Log failed verification attempt
-            print(f"Payment verification failed for order {razorpay_order_id}")
+            logger.warning(f"Payment verification failed for order {razorpay_order_id}")
             return jsonify({'error': 'Invalid payment signature'}), 400
         
         # STEP 2: ADDITIONAL SERVER-SIDE CHECK - Verify payment status with Razorpay API
@@ -817,7 +1077,7 @@ def payment_verify():
                 actual_amount = payment_details.get('amount', 0)
                 
                 if expected_amount != actual_amount:
-                    print(f"Amount mismatch - Expected: {expected_amount}, Received: {actual_amount}, Registration Amount: {registration_data.get('payment_amount')}")
+                    logger.warning(f"Amount mismatch - Expected: {expected_amount}, Received: {actual_amount}, Registration Amount: {registration_data.get('payment_amount')}")
                     return jsonify({
                         'error': 'Payment amount mismatch',
                         'details': f'Expected ₹{expected_amount/100}, received ₹{actual_amount/100}'
@@ -826,7 +1086,7 @@ def payment_verify():
                 return jsonify({'error': 'Unable to verify payment with Razorpay'}), 400
                 
         except Exception as e:
-            print(f"Error verifying payment with Razorpay API: {str(e)}")
+            logger.error(f"Error verifying payment with Razorpay API: {str(e)}")
             return jsonify({'error': 'Payment verification failed'}), 500
         
         # STEP 3: Payment fully verified on server - NOW save the registration
@@ -836,20 +1096,6 @@ def payment_verify():
             reg_file = os.path.join(registrations_dir, registration_file)
         else:
             return jsonify({'error': 'Missing registration file'}), 400
-        
-        # Load existing registrations
-        registrations = []
-        if os.path.exists(reg_file):
-            with open(reg_file, 'r') as f:
-                registrations = json.load(f)
-        
-        # Check for duplicate payment (prevent double registration)
-        for reg in registrations:
-            if reg.get('payment_id') == razorpay_payment_id:
-                return jsonify({
-                    'error': 'Payment already processed',
-                    'registration_id': reg.get('id')
-                }), 400
         
         # Add payment details to registration data
         registration_data['payment_status'] = 'completed'
@@ -861,49 +1107,68 @@ def payment_verify():
         registration_data['entry_time'] = None
         registration_data['marked_by'] = None
         
-        # Generate UUID and QR code if not already present
-        if 'registration_id' not in registration_data:
+        # Get event name for email
+        event_name = 'Event'
+        try:
+            _, events, _, _ = load_data()
+            event_id = registration_data.get('event_id')
+            if event_id:
+                event = next((e for e in events if e.get('id') == int(event_id)), None)
+                if event:
+                    event_name = event.get('name', 'Event')
+        except:
+            pass
+        
+        # The registration_id should already be in registration_data from the initial form submission
+        if 'registration_id' not in registration_data or not registration_data['registration_id']:
             registration_uuid = str(uuid.uuid4())
             registration_data['registration_id'] = registration_uuid
-            
-            # Get event name
-            event_name = 'Event'
-            try:
-                _, events, _, _ = load_data()
-                event_id = registration_data.get('event_id')
-                if event_id:
-                    event = next((e for e in events if e.get('id') == int(event_id)), None)
-                    if event:
-                        event_name = event.get('name', 'Event')
-            except:
-                pass
-            
-            # Generate QR code with admin verification URL
+            logger.warning(f"registration_id was missing, generated new one: {registration_uuid}")
+        else:
+            registration_uuid = registration_data['registration_id']
+            logger.debug(f"Using existing registration_id: {registration_uuid}")
+        
+        # Generate QR code if not present
+        if 'qr_code' not in registration_data or not registration_data['qr_code']:
             event_id_param = registration_data.get('event_id', '')
             qr_url = f"{request.host_url}admin/verify-entry?regid={registration_uuid}&email={registration_data.get('submitter_email', '')}&event_id={event_id_param}"
             qr_code_base64 = generate_qr_code(qr_url)
-            
             if qr_code_base64:
                 registration_data['qr_code'] = qr_code_base64
         else:
-            registration_uuid = registration_data['registration_id']
-            qr_code_base64 = registration_data.get('qr_code')
-            event_name = 'Event'
+            qr_code_base64 = registration_data['qr_code']
         
-        # Assign new ID
-        registration_data['id'] = len(registrations) + 1
+        # Define duplicate check function for payment registration
+        def check_payment_duplicates(registrations, new_reg):
+            # Check for duplicate payment ID
+            for reg in registrations:
+                if reg.get('payment_id') == razorpay_payment_id:
+                    return f'Payment already processed'
+                # Also check for duplicate email
+                if reg.get('submitter_email', '').lower() == new_reg.get('submitter_email', '').lower():
+                    return f'Email already registered'
+            return None
         
-        # Save registration
-        registrations.append(registration_data)
-        with open(reg_file, 'w') as f:
-            json.dump(registrations, f, indent=4)
+        # Save registration using ATOMIC operation
+        logger.debug(f"Saving payment registration to: {reg_file}")
+        logger.debug(f"Registration ID being saved: {registration_uuid}")
         
-        # Send confirmation email with QR code
+        success, error_msg, _ = atomic_add_registration(reg_file, registration_data, check_payment_duplicates)
+        
+        if not success:
+            return jsonify({
+                'error': error_msg,
+                'registration_id': registration_uuid if 'already processed' in (error_msg or '') else None
+            }), 400
+        
+        logger.debug(f"Payment registration saved successfully with ID: {registration_uuid}")
+        
+        # Send confirmation email with QR code (use the SAME registration_uuid that was saved)
         email_sent = False
         if qr_code_base64:
             email_sent = send_registration_email(
                 email=registration_data.get('submitter_email'),
-                registration_id=registration_uuid,
+                registration_id=registration_uuid,  # Use the exact same UUID that was saved
                 qr_code_base64=qr_code_base64,
                 event_name=event_name,
                 registration_data=registration_data
@@ -918,7 +1183,7 @@ def payment_verify():
         }), 200
             
     except Exception as e:
-        print(f"Payment verification error: {str(e)}")
+        logger.error(f"Payment verification error: {str(e)}")
         return jsonify({'error': 'Payment verification failed'}), 500
 
 
@@ -926,14 +1191,17 @@ def payment_verify():
 def payment_webhook():
     """Handle Razorpay webhook for payment notifications (Server-side)"""
     try:
-        # Get webhook data
-        webhook_secret = os.getenv('RAZORPAY_WEBHOOK_SECRET', 'your_webhook_secret_here')
+        # Get webhook data - SECURITY: Use environment variable for webhook secret
+        webhook_secret = os.environ.get('RAZORPAY_WEBHOOK_SECRET')
+        if not webhook_secret:
+            logger.error("RAZORPAY_WEBHOOK_SECRET not configured")
+            return jsonify({'error': 'Webhook not configured'}), 500
+        
         webhook_signature = request.headers.get('X-Razorpay-Signature')
         webhook_body = request.get_data()
         
         # Verify webhook signature (Server-side verification)
-        import hmac
-        import hashlib
+        # hmac and hashlib are imported at module level
         expected_signature = hmac.new(
             webhook_secret.encode(),
             webhook_body,
@@ -941,7 +1209,7 @@ def payment_webhook():
         ).hexdigest()
         
         if webhook_signature != expected_signature:
-            print("Webhook signature verification failed")
+            logger.warning("Webhook signature verification failed")
             return jsonify({'error': 'Invalid signature'}), 400
         
         # Process webhook event
@@ -955,7 +1223,7 @@ def payment_webhook():
             payment_id = payment_entity.get('id')
             amount = payment_entity.get('amount')
             
-            print(f"Payment captured: {payment_id} for order: {order_id}")
+            logger.info(f"Payment captured: {payment_id} for order: {order_id}")
             
             # Find and update registration
             registrations_dir = os.path.join(PROJECT_ROOT, 'data', 'registrations')
@@ -963,8 +1231,7 @@ def payment_webhook():
                 for filename in os.listdir(registrations_dir):
                     if filename.endswith('_registrations.json'):
                         filepath = os.path.join(registrations_dir, filename)
-                        with open(filepath, 'r') as f:
-                            registrations = json.load(f)
+                        registrations = safe_json_read(filepath)
                         
                         for reg in registrations:
                             if reg.get('payment_order_id') == order_id:
@@ -973,8 +1240,7 @@ def payment_webhook():
                                 reg['payment_completed_at'] = datetime.now().isoformat()
                                 reg['webhook_verified'] = True
                                 
-                                with open(filepath, 'w') as f:
-                                    json.dump(registrations, f, indent=4)
+                                safe_json_write(filepath, registrations)
                                 
                                 return jsonify({'status': 'ok'}), 200
         
@@ -983,7 +1249,7 @@ def payment_webhook():
             payment_entity = event.get('payload', {}).get('payment', {}).get('entity', {})
             order_id = payment_entity.get('order_id')
             
-            print(f"Payment failed for order: {order_id}")
+            logger.warning(f"Payment failed for order: {order_id}")
             
             # Update registration status
             registrations_dir = os.path.join(PROJECT_ROOT, 'data', 'registrations')
@@ -991,23 +1257,21 @@ def payment_webhook():
                 for filename in os.listdir(registrations_dir):
                     if filename.endswith('_registrations.json'):
                         filepath = os.path.join(registrations_dir, filename)
-                        with open(filepath, 'r') as f:
-                            registrations = json.load(f)
+                        registrations = safe_json_read(filepath)
                         
                         for reg in registrations:
                             if reg.get('payment_order_id') == order_id:
                                 reg['payment_status'] = 'failed'
                                 reg['payment_failed_at'] = datetime.now().isoformat()
                                 
-                                with open(filepath, 'w') as f:
-                                    json.dump(registrations, f, indent=4)
+                                safe_json_write(filepath, registrations)
                                 
                                 return jsonify({'status': 'ok'}), 200
         
         return jsonify({'status': 'ok'}), 200
         
     except Exception as e:
-        print(f"Webhook processing error: {str(e)}")
+        logger.error(f"Webhook processing error: {str(e)}")
         return jsonify({'error': 'Webhook processing failed'}), 500
 
 
@@ -1034,7 +1298,7 @@ def payment_status(order_id):
             return jsonify({'error': 'Unable to fetch order status'}), 400
             
     except Exception as e:
-        print(f"Status check error: {str(e)}")
+        logger.error(f"Status check error: {str(e)}")
         return jsonify({'error': 'Status check failed'}), 500
 
 
@@ -1051,8 +1315,7 @@ def payment_callback():
     
     # Verify signature on server
     try:
-        import hmac
-        import hashlib
+        # hmac and hashlib are imported at module level
         message = f"{order_id}|{payment_id}"
         expected_signature = hmac.new(
             KEY_SECRET_RAZOR.encode(),
@@ -1104,6 +1367,123 @@ def api_members():
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
     return jsonify(MEMBERS)
+
+# ========================================
+# Attendance Check Routes (Public)
+# ========================================
+
+@app.route('/attendance/check', methods=['GET', 'POST'])
+def attendance_check():
+    """Public page for attendees to check their attendance status
+    
+    Supports GET parameters for shareable links:
+    - event_id: The event ID
+    - email: The attendee's email
+    - registration_id or rid: The registration UUID
+    
+    Example: /attendance/check?event_id=1&email=test@example.com&rid=66446360-a634-4179-904f-c77100275e76
+    """
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    attendance_info = None
+    error_message = None
+    
+    # Check for GET parameters (shareable link) or POST form submission
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        reg_id = request.form.get('registration_id', '').strip()
+        event_id = request.form.get('event_id')
+    else:
+        # GET request - check for query parameters
+        email = request.args.get('email', '').strip().lower()
+        reg_id = request.args.get('registration_id', request.args.get('rid', '')).strip()
+        event_id = request.args.get('event_id')
+    
+    # Process if we have the required parameters (either from GET or POST)
+    if email and reg_id and event_id:
+        try:
+            event_id = int(event_id)
+            event = next((e for e in EVENTS if e.get('id') == event_id), None)
+            
+            if not event:
+                error_message = 'Event not found.'
+            else:
+                # Load registrations for this event
+                registrations = []
+                reg_file_path = None
+                
+                if event.get('registration_file'):
+                    reg_file_path = os.path.join(PROJECT_ROOT, event['registration_file'])
+                    if os.path.exists(reg_file_path):
+                        with open(reg_file_path, 'r') as f:
+                            registrations = json.load(f)
+                else:
+                    event_slug = slugify(event.get('name', ''))
+                    reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', f'{event_slug}_registrations.json')
+                    if os.path.exists(reg_file_path):
+                        with open(reg_file_path, 'r') as f:
+                            registrations = json.load(f)
+                
+                # Find the registration
+                registration = None
+                for reg in registrations:
+                    if reg.get('registration_id') == reg_id and reg.get('submitter_email', '').lower() == email:
+                        registration = reg
+                        break
+                
+                if not registration:
+                    error_message = 'Registration not found. Please check your email and registration ID.'
+                else:
+                    attendance_info = {
+                        'event': event,
+                        'registration': registration,
+                        'name': registration.get('name', registration.get('submitter_email', 'Participant')),
+                        'attendance_status': registration.get('attendance_status', 'not_entered'),
+                        'entry_time': registration.get('entry_time'),
+                        'attendance_comment': registration.get('attendance_comment', ''),
+                        'marked_by': registration.get('marked_by', ''),
+                        'total_registrations': len(registrations)
+                    }
+        except (ValueError, TypeError):
+            error_message = 'Invalid event selection.'
+    elif request.method == 'POST':
+        # Only show error for POST with missing fields
+        error_message = 'Please provide email, registration ID, and select an event.'
+    
+    # Generate shareable link if we have attendance info
+    shareable_link = None
+    shareable_qr_code = None
+    if attendance_info:
+        shareable_link = url_for('attendance_check', 
+                                  event_id=attendance_info['event']['id'],
+                                  email=attendance_info['registration']['submitter_email'],
+                                  rid=attendance_info['registration']['registration_id'],
+                                  _external=True)
+        
+        # Generate QR code for the shareable link
+        try:
+            qr = qrcode.QRCode(version=1, box_size=10, border=4)
+            qr.add_data(shareable_link)
+            qr.make(fit=True)
+            qr_img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convert to base64
+            buffered = io.BytesIO()
+            qr_img.save(buffered, format="PNG")
+            shareable_qr_code = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        except Exception as e:
+            logging.error(f"Error generating shareable QR code: {e}")
+            shareable_qr_code = None
+    
+    return render_template('attendance_check.html',
+                         club_info=CLUB_INFO,
+                         contact=CLUB_INFO,
+                         events=EVENTS,
+                         attendance_info=attendance_info,
+                         error_message=error_message,
+                         shareable_link=shareable_link,
+                         shareable_qr_code=shareable_qr_code)
 
 # ========================================
 # Admin Routes
@@ -1216,7 +1596,7 @@ def admin_club_info():
             'instagram': CLUB_INFO.get('instagram', ''),
             'email_config': {
                 'MAIL_SERVER': request.form.get('mail_server', 'smtp.gmail.com'),
-                'MAIL_PORT': int(request.form.get('mail_port', 587)),
+                'MAIL_PORT': int(request.form.get('mail_port', 587) or 587),
                 'MAIL_USE_TLS': request.form.get('mail_use_tls') == 'true',
                 'MAIL_USERNAME': request.form.get('mail_username', ''),
                 'MAIL_PASSWORD': request.form.get('mail_password', ''),
@@ -1296,6 +1676,22 @@ def admin_create_event():
             template_id = request.form.get('template_id')
             new_event['template_id'] = int(template_id) if template_id else None
             new_event['register_link'] = '#'
+            
+            # Create registration file for internal registration
+            if new_event['template_id']:
+                event_slug = re.sub(r'[^a-z0-9]+', '_', new_event['name'].lower()).strip('_')
+                # Include event ID for uniqueness (same name events get different files)
+                reg_filename = f"{event_slug}_{new_event['id']}_registrations.json"
+                reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', reg_filename)
+                
+                # Create registrations directory if it doesn't exist
+                os.makedirs(os.path.dirname(reg_file_path), exist_ok=True)
+                
+                # Create empty registration file
+                with open(reg_file_path, 'w') as f:
+                    json.dump([], f)
+                
+                new_event['registration_file'] = f'data/registrations/{reg_filename}'
         else:
             new_event['register_link'] = '#'
             new_event['template_id'] = None
@@ -1328,7 +1724,7 @@ def admin_create_event():
             with open(templates_file, 'r') as f:
                 templates = json.load(f)
     except Exception as e:
-        print(f"Error loading templates: {e}")
+        logger.error(f"Error loading templates: {e}")
     
     return render_template('admin/create_event.html', forms=templates)
 
@@ -1523,13 +1919,40 @@ def admin_edit_event(event_id):
         if registration_type == 'external':
             event['register_link'] = request.form.get('register_link', '#')
             event['template_id'] = None
+            # Clear registration_file for external registration
+            if 'registration_file' in event:
+                del event['registration_file']
         elif registration_type == 'internal':
             template_id = request.form.get('template_id')
-            event['template_id'] = int(template_id) if template_id else None
+            new_template_id = int(template_id) if template_id else None
+            old_template_id = event.get('template_id')
+            
+            event['template_id'] = new_template_id
             event['register_link'] = '#'
+            
+            # Create/update registration file if template is set and no file exists
+            if new_template_id and not event.get('registration_file'):
+                # Generate registration filename based on event name and ID for uniqueness
+                event_slug = re.sub(r'[^a-z0-9]+', '_', event['name'].lower()).strip('_')
+                reg_filename = f"{event_slug}_{event['id']}_registrations.json"
+                reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', reg_filename)
+                
+                # Create registrations directory if it doesn't exist
+                os.makedirs(os.path.dirname(reg_file_path), exist_ok=True)
+                
+                # Create empty registration file if it doesn't exist
+                if not os.path.exists(reg_file_path):
+                    with open(reg_file_path, 'w') as f:
+                        json.dump([], f)
+                
+                # Update the registration_file path in event
+                event['registration_file'] = f'data/registrations/{reg_filename}'
         else:
             event['register_link'] = '#'
             event['template_id'] = None
+            # Clear registration_file if registration type is none
+            if 'registration_file' in event:
+                del event['registration_file']
         
         # Handle registration deadline
         deadline_date = request.form.get('deadline_date')
@@ -1560,7 +1983,7 @@ def admin_edit_event(event_id):
             with open(templates_file, 'r') as f:
                 templates = json.load(f)
     except Exception as e:
-        print(f"Error loading templates: {e}")
+        logger.error(f"Error loading templates: {e}")
     
     return render_template('admin/edit_event.html', event=event, forms=templates)
 
@@ -1825,13 +2248,21 @@ def admin_create_registration_form():
                 with open(templates_file, 'r') as f:
                     templates = json.load(f)
             
-            # Get form data
+            # Generate unique ID
+            max_id = max([t.get('id', 0) for t in templates], default=0)
+            
+            # Get form data with new participant-based structure
             template_data = {
-                'id': len(templates) + 1,
+                'id': max_id + 1,
                 'name': request.form.get('name'),
                 'description': request.form.get('description', ''),
-                'fields': json.loads(request.form.get('fields', '[]')),
-                'active': request.form.get('active') == 'true'
+                'min_participants': int(request.form.get('min_participants', 1)),
+                'max_participants': int(request.form.get('max_participants', 1)),
+                'custom_fields': json.loads(request.form.get('custom_fields', '[]')),
+                'active': request.form.get('active') == 'true',
+                'payment_enabled': request.form.get('payment_enabled') == 'true',
+                'payment_amount': float(request.form.get('payment_amount', 0)) if request.form.get('payment_enabled') == 'true' else 0,
+                'payment_description': request.form.get('payment_description', '') if request.form.get('payment_enabled') == 'true' else ''
             }
             
             # Add to templates list
@@ -1870,11 +2301,16 @@ def admin_edit_registration_form(form_id):
     
     if request.method == 'POST':
         try:
-            # Update template data
+            # Update template data with new participant-based structure
             templates[template_index]['name'] = request.form.get('name')
             templates[template_index]['description'] = request.form.get('description', '')
-            templates[template_index]['fields'] = json.loads(request.form.get('fields', '[]'))
+            templates[template_index]['min_participants'] = int(request.form.get('min_participants', 1))
+            templates[template_index]['max_participants'] = int(request.form.get('max_participants', 1))
+            templates[template_index]['custom_fields'] = json.loads(request.form.get('custom_fields', '[]'))
             templates[template_index]['active'] = request.form.get('active') == 'true'
+            templates[template_index]['payment_enabled'] = request.form.get('payment_enabled') == 'true'
+            templates[template_index]['payment_amount'] = float(request.form.get('payment_amount', 0)) if request.form.get('payment_enabled') == 'true' else 0
+            templates[template_index]['payment_description'] = request.form.get('payment_description', '') if request.form.get('payment_enabled') == 'true' else ''
             
             # Save to file
             with open(templates_file, 'w') as f:
@@ -1945,6 +2381,223 @@ def admin_delete_registration_form(form_id):
     
     return redirect(url_for('admin_registration_forms'))
 
+@app.route('/admin/events/<int:event_id>/send-attendance-emails', methods=['POST'])
+@admin_required
+def admin_send_attendance_emails(event_id):
+    """Send attendance verification emails to registrants"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    try:
+        data = request.get_json()
+        filter_type = data.get('filter', 'marked')
+        
+        event = next((e for e in EVENTS if e.get('id') == event_id), None)
+        if not event:
+            return jsonify({'success': False, 'message': 'Event not found.'})
+        
+        # Load registrations
+        registrations = []
+        if event.get('registration_file'):
+            reg_file = os.path.join(PROJECT_ROOT, event['registration_file'])
+            if os.path.exists(reg_file):
+                with open(reg_file, 'r') as f:
+                    registrations = json.load(f)
+        else:
+            event_slug = slugify(event.get('name', ''))
+            reg_file = os.path.join(PROJECT_ROOT, 'data', 'registrations', f'{event_slug}_registrations.json')
+            if os.path.exists(reg_file):
+                with open(reg_file, 'r') as f:
+                    registrations = json.load(f)
+        
+        if not registrations:
+            return jsonify({'success': False, 'message': 'No registrations found for this event.'})
+        
+        # Filter registrations based on filter type
+        filtered_registrations = []
+        for reg in registrations:
+            status = reg.get('attendance_status', 'not_entered')
+            if filter_type == 'all':
+                filtered_registrations.append(reg)
+            elif filter_type == 'marked' and status in ['entered', 'partially_present']:
+                filtered_registrations.append(reg)
+            elif filter_type == 'entered' and status == 'entered':
+                filtered_registrations.append(reg)
+            elif filter_type == 'partially_present' and status == 'partially_present':
+                filtered_registrations.append(reg)
+        
+        if not filtered_registrations:
+            return jsonify({'success': False, 'message': 'No registrations match the selected filter.'})
+        
+        # Send emails
+        sent_count = 0
+        failed_count = 0
+        
+        for reg in filtered_registrations:
+            try:
+                email = reg.get('submitter_email')
+                if not email:
+                    failed_count += 1
+                    continue
+                
+                # Generate shareable link
+                shareable_link = url_for('attendance_check',
+                                        event_id=event_id,
+                                        email=email,
+                                        rid=reg.get('registration_id'),
+                                        _external=True)
+                
+                # Generate QR code for the link
+                qr = qrcode.QRCode(version=1, box_size=10, border=4)
+                qr.add_data(shareable_link)
+                qr.make(fit=True)
+                qr_img = qr.make_image(fill_color="black", back_color="white")
+                
+                buffered = io.BytesIO()
+                qr_img.save(buffered, format="PNG")
+                qr_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+                
+                # Determine status text and styling
+                status = reg.get('attendance_status', 'not_entered')
+                if status == 'entered':
+                    status_text = 'Fully Present'
+                    status_color = '#10b981'
+                    status_icon = '✓'
+                elif status == 'partially_present':
+                    status_text = 'Partially Present'
+                    status_color = '#f59e0b'
+                    status_icon = '⚠'
+                else:
+                    status_text = 'Attendance Not Marked'
+                    status_color = '#6b7280'
+                    status_icon = '○'
+                
+                # Get participant info
+                participant_name = reg.get('name', reg.get('submitter_email', 'Participant'))
+                
+                # Build email HTML
+                email_html = f"""
+                <html>
+                <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa;">
+                    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+                        <!-- Header -->
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+                            <h1 style="color: white; margin: 0; font-size: 24px;">📋 Attendance Certificate</h1>
+                            <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 16px;">{html_escape(event.get('name', 'Event'))}</p>
+                        </div>
+                        
+                        <!-- Status Badge -->
+                        <div style="text-align: center; padding: 30px;">
+                            <div style="display: inline-block; padding: 15px 30px; background: {status_color}20; border-radius: 50px; border: 2px solid {status_color};">
+                                <span style="font-size: 24px; color: {status_color}; font-weight: bold;">{status_icon} {status_text}</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Details -->
+                        <div style="padding: 0 30px 30px;">
+                            <h3 style="color: #1f2937; margin: 0 0 15px;">Hello {html_escape(participant_name)},</h3>
+                            <p style="color: #4b5563; line-height: 1.6;">
+                                Your attendance for <strong>{html_escape(event.get('name', 'the event'))}</strong> has been recorded.
+                                Below are your details for verification:
+                            </p>
+                            
+                            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                                <tr style="background: #f3f4f6;">
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Event</td>
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #1f2937;">{html_escape(event.get('name', '-'))}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Date</td>
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #1f2937;">{html_escape(event.get('date', '-'))}</td>
+                                </tr>
+                                <tr style="background: #f3f4f6;">
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Email</td>
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #1f2937;">{html_escape(email)}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Registration ID</td>
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #1f2937; font-family: monospace; font-size: 12px;">{html_escape(reg.get('registration_id', '-'))}</td>
+                                </tr>
+                                <tr style="background: #f3f4f6;">
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Attendance Status</td>
+                                    <td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: {status_color}; font-weight: bold;">{status_text}</td>
+                                </tr>
+                                {f'<tr><td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Marked At</td><td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #1f2937;">{html_escape(reg.get("entry_time", "-"))}</td></tr>' if reg.get('entry_time') else ''}
+                                {f'<tr style="background: #f3f4f6;"><td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Comment</td><td style="padding: 12px 15px; border-bottom: 1px solid #e5e7eb; color: #f59e0b;">{html_escape(reg.get("attendance_comment", ""))}</td></tr>' if reg.get('attendance_comment') else ''}
+                            </table>
+                            
+                            <!-- Verification Link -->
+                            <div style="background: linear-gradient(135deg, #667eea20, #764ba220); border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+                                <p style="margin: 0 0 15px; color: #374151; font-weight: 600;">🔗 Shareable Verification Link</p>
+                                <a href="{shareable_link}" style="display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                                    View Attendance Proof
+                                </a>
+                                <p style="margin: 15px 0 0; color: #6b7280; font-size: 12px;">
+                                    Share this link with your faculty/college for verification
+                                </p>
+                            </div>
+                            
+                            <!-- QR Code -->
+                            <div style="text-align: center; margin: 30px 0;">
+                                <p style="color: #374151; margin: 0 0 10px; font-weight: 600;">📱 Scan QR to Verify</p>
+                                <img src="cid:qr_code" alt="QR Code" style="width: 150px; height: 150px; border: 2px solid #e5e7eb; border-radius: 8px;">
+                            </div>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div style="background: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                            <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                                This is a computer-generated email from {html_escape(CLUB_INFO.get('name', 'AICC'))}.
+                            </p>
+                            <p style="margin: 5px 0 0; color: #9ca3af; font-size: 11px;">
+                                © {datetime.now().year} {html_escape(CLUB_INFO.get('short_name', 'AICC'))}. All rights reserved.
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                # Create email message
+                msg = Message(
+                    subject=f"🎓 Attendance Certificate - {event.get('name', 'Event')}",
+                    recipients=[email],
+                    html=email_html
+                )
+                
+                # Attach QR code as inline image
+                qr_image_data = base64.b64decode(qr_base64)
+                msg.attach(
+                    'qr_code.png',
+                    'image/png',
+                    qr_image_data,
+                    'inline',
+                    headers={'Content-ID': '<qr_code>'}
+                )
+                
+                mail.send(msg)
+                sent_count += 1
+                logging.info(f"Sent attendance email to {email} for event {event_id}")
+                
+            except Exception as e:
+                logging.error(f"Failed to send attendance email to {reg.get('submitter_email')}: {e}")
+                failed_count += 1
+        
+        message = f"Sent {sent_count} email(s) successfully."
+        if failed_count > 0:
+            message += f" {failed_count} failed."
+        
+        return jsonify({
+            'success': True,
+            'sent_count': sent_count,
+            'failed_count': failed_count,
+            'message': message
+        })
+        
+    except Exception as e:
+        logging.error(f"Error in send_attendance_emails: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
 @app.route('/admin/events/<int:event_id>/registrations')
 @admin_required
 def admin_view_registrations(event_id):
@@ -1987,6 +2640,41 @@ def admin_view_registrations(event_id):
                          form=template,
                          event=event,
                          registrations=registrations)
+
+@app.route('/admin/events/<int:event_id>/toggle-registration', methods=['POST'])
+@admin_required
+def admin_toggle_registration(event_id):
+    """Toggle registration open/closed for an event"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    
+    try:
+        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
+            events = json.load(f)
+        
+        event = next((e for e in events if e.get('id') == event_id), None)
+        if not event:
+            return jsonify({'success': False, 'message': 'Event not found'}), 404
+        
+        # Toggle the allow_registration field
+        current_status = event.get('allow_registration', True)  # Default to True if not set
+        event['allow_registration'] = not current_status
+        
+        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
+            json.dump(events, f, indent=4)
+        
+        # Reload data
+        CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+        
+        new_status = event['allow_registration']
+        return jsonify({
+            'success': True, 
+            'allow_registration': new_status,
+            'message': f'Registration {"enabled" if new_status else "disabled"} for {event.get("name")}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error toggling registration: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/admin/verify-entry')
 @admin_required
@@ -2040,21 +2728,26 @@ def admin_verify_entry():
         flash('Registration not found or email does not match.', 'error')
         return redirect(url_for('admin_view_registrations', event_id=event_id))
     
-    # Check if already entered
-    already_entered = registration.get('attendance_status') == 'entered'
+    # Check attendance status
+    attendance_status = registration.get('attendance_status', 'not_entered')
+    already_marked = attendance_status in ['entered', 'partially_present']
     
     return render_template('admin/verify_entry.html',
                          event=event,
                          registration=registration,
-                         already_entered=already_entered)
+                         already_marked=already_marked,
+                         attendance_status=attendance_status)
 
 @app.route('/admin/mark-entry', methods=['POST'])
 @admin_required
 def admin_mark_entry():
-    """Mark attendee as entered"""
+    """Mark attendee as entered (full, partial, or per-participant)"""
     regid = request.form.get('regid')
     email = request.form.get('email')
     event_id = request.form.get('event_id')
+    attendance_type = request.form.get('attendance_type', 'full')  # 'full', 'partial', or 'participants'
+    attendance_comment = request.form.get('attendance_comment', '').strip()
+    participant_attendance_json = request.form.get('participant_attendance', '')
     
     if not regid or not email or not event_id:
         return jsonify({'error': 'Missing parameters'}), 400
@@ -2071,43 +2764,63 @@ def admin_mark_entry():
     if not event:
         return jsonify({'error': 'Event not found'}), 404
     
-    # Load registrations
-    registrations = []
+    # Determine registration file path
     reg_file_path = None
     if event.get('registration_file'):
         reg_file_path = os.path.join(PROJECT_ROOT, event['registration_file'])
-        if os.path.exists(reg_file_path):
-            with open(reg_file_path, 'r') as f:
-                registrations = json.load(f)
     else:
         event_slug = slugify(event.get('name', ''))
         reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', f'{event_slug}_registrations.json')
-        if os.path.exists(reg_file_path):
-            with open(reg_file_path, 'r') as f:
-                registrations = json.load(f)
+    
+    # Load registrations using safe read
+    registrations = safe_json_read(reg_file_path)
     
     # Find and update the registration
     updated = False
     for reg in registrations:
         if reg.get('registration_id') == regid and reg.get('submitter_email', '').lower() == email.lower():
-            # Check if already entered
-            if reg.get('attendance_status') == 'entered':
-                return jsonify({'error': 'Already marked as entered', 'already_entered': True}), 400
             
-            # Mark as entered
-            reg['attendance_status'] = 'entered'
+            # Handle participant-based attendance (checkboxes)
+            if attendance_type == 'participants' and participant_attendance_json:
+                try:
+                    participant_attendance = json.loads(participant_attendance_json)
+                    reg['participant_attendance'] = participant_attendance
+                    
+                    # Calculate overall attendance status
+                    total = len(participant_attendance)
+                    present = sum(1 for p in participant_attendance if p)
+                    
+                    if present == total:
+                        reg['attendance_status'] = 'entered'
+                    elif present > 0:
+                        reg['attendance_status'] = 'partially_present'
+                    else:
+                        reg['attendance_status'] = 'not_entered'
+                    
+                    reg['attendance_comment'] = f'{present}/{total} participants present'
+                    
+                except (json.JSONDecodeError, TypeError) as e:
+                    logger.error(f"Failed to parse participant_attendance: {e}")
+                    return jsonify({'error': 'Invalid participant attendance data'}), 400
+            else:
+                # Legacy mode: full or partial attendance
+                if attendance_type == 'partial':
+                    reg['attendance_status'] = 'partially_present'
+                else:
+                    reg['attendance_status'] = 'entered'
+                reg['attendance_comment'] = attendance_comment
+            
             reg['entry_time'] = datetime.now().isoformat()
-            reg['marked_by'] = ADMIN_USERNAME  # Current admin
+            reg['marked_by'] = session.get('admin_username', ADMIN_USERNAME)
             updated = True
             break
     
     if not updated:
         return jsonify({'error': 'Registration not found'}), 404
     
-    # Save updated registrations
+    # Save updated registrations using safe write
     try:
-        with open(reg_file_path, 'w') as f:
-            json.dump(registrations, f, indent=4)
+        safe_json_write(reg_file_path, registrations)
         return jsonify({'success': True, 'message': 'Entry marked successfully'}), 200
     except Exception as e:
         return jsonify({'error': 'Failed to save entry'}), 500

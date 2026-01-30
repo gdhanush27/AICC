@@ -11,7 +11,7 @@
 <div class="register-page">
     <div class="register-hero">
         <div class="register-hero-bg"></div>
-        <div class="container mx-auto px-4 py-12 mt-20">
+        <div class="container mx-auto px-4 py-12">
             <div class="register-hero-card">
                 <div class="hero-content">
                     <div class="hero-badges">
@@ -64,7 +64,38 @@
                     </div>
                 </div>
             
-            {% if form and form.active and submit_endpoint %}
+            {% if registration_closed %}
+            <div class="empty-state" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1)); border: 2px solid #ef4444; border-radius: 16px; padding: 3rem 2rem;">
+                <i class="fas fa-door-closed" style="font-size: 4rem; color: #ef4444; margin-bottom: 1rem;"></i>
+                <h3 style="color: #ef4444; font-size: 1.5rem; margin-bottom: 0.5rem;">Registration Closed</h3>
+                <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem;">Registration for this event has been closed by the organizers. Please contact the event coordinators for more information.</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn-ghost" style="background: #ef4444; color: white; border: none;">
+                        <i class="fas fa-arrow-left"></i> Back to Event
+                    </a>
+                    <a href="{{ url_for('events') }}" class="btn-ghost">
+                        <i class="fas fa-calendar-alt"></i> View All Events
+                    </a>
+                </div>
+            </div>
+            {% elif deadline_passed %}
+            <div class="empty-state" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1)); border: 2px solid #f59e0b; border-radius: 16px; padding: 3rem 2rem;">
+                <i class="fas fa-clock" style="font-size: 4rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+                <h3 style="color: #d97706; font-size: 1.5rem; margin-bottom: 0.5rem;">Registration Deadline Passed</h3>
+                <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto 1.5rem;">The registration deadline for this event has passed. Please contact the event coordinators if you have any questions.</p>
+                {% if event.registration_deadline and event.registration_deadline.date %}
+                <p style="color: #92400e; font-size: 0.9rem; margin-bottom: 1.5rem;"><i class="fas fa-calendar-times"></i> Deadline was: <strong>{{ event.registration_deadline.date }}</strong></p>
+                {% endif %}
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <a href="{{ url_for('event_detail', event_id=event.id) }}" class="btn-ghost" style="background: #f59e0b; color: white; border: none;">
+                        <i class="fas fa-arrow-left"></i> Back to Event
+                    </a>
+                    <a href="{{ url_for('events') }}" class="btn-ghost">
+                        <i class="fas fa-calendar-alt"></i> View All Events
+                    </a>
+                </div>
+            </div>
+            {% elif form and form.active and submit_endpoint %}
             
             <!-- Info Banner -->
             <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 1px solid var(--primary-color); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; display: flex; align-items: start; gap: 1rem;">
@@ -100,6 +131,162 @@
                     </p>
                 </div>
 
+                <!-- Participant Selection (if variable participants allowed) -->
+                {% if form.min_participants is defined and form.max_participants is defined %}
+                    {% if form.min_participants != form.max_participants %}
+                    <div class="form-group" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(16, 185, 129, 0.1)); border: 2px solid rgba(34, 197, 94, 0.3); border-radius: 12px; padding: 1.25rem;">
+                        <label for="num_participants" class="form-label">
+                            <i class="fas fa-users" style="margin-right: 0.5rem; color: #059669;"></i>
+                            Number of Participants
+                            <span class="text-red-500">*</span>
+                        </label>
+                        <select 
+                            id="num_participants" 
+                            name="num_participants" 
+                            required
+                            class="form-input"
+                            style="border-color: #059669;"
+                            onchange="updateParticipantFields()"
+                        >
+                            {% for i in range(form.min_participants, form.max_participants + 1) %}
+                            <option value="{{ i }}" {% if i == form.min_participants %}selected{% endif %}>{{ i }} Participant{{ 's' if i > 1 else '' }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="helper-text" style="color: #059669;">
+                            <i class="fas fa-info-circle"></i> Select between {{ form.min_participants }} and {{ form.max_participants }} participants
+                        </p>
+                    </div>
+                    {% else %}
+                    <input type="hidden" name="num_participants" value="{{ form.min_participants }}">
+                    {% endif %}
+                    
+                    <!-- Participants Section -->
+                    <div class="participants-section" style="background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin: 1rem 0;">
+                        <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.25rem; color: var(--text-primary); font-size: 1.1rem;">
+                            <i class="fas fa-user-friends" style="color: var(--primary-color);"></i>
+                            Participant Details
+                        </h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                            {% if form.min_participants == form.max_participants %}
+                                Please fill in details for {{ 'the participant' if form.min_participants == 1 else 'all ' ~ form.min_participants ~ ' participants' }}.
+                            {% else %}
+                                Fill in details for each participant (Name, Roll Number, Email required).
+                            {% endif %}
+                        </p>
+                        
+                        <div id="participantsContainer">
+                            {% for i in range(1, form.max_participants + 1) %}
+                            <div class="participant-card" id="participant-{{ i }}" {% if i > form.min_participants %}style="display: none;"{% endif %}>
+                                <div class="participant-header">
+                                    <span class="participant-number">
+                                        <i class="fas fa-user"></i>
+                                        Participant {{ i }}{% if i == 1 and form.min_participants == 1 and form.max_participants == 1 %} (You){% endif %}
+                                    </span>
+                                </div>
+                                <div class="participant-fields">
+                                    <div class="form-group">
+                                        <label for="participant_{{ i }}_name" class="form-label">
+                                            Full Name <span class="text-red-500">*</span>
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="participant_{{ i }}_name" 
+                                            name="participant_{{ i }}_name" 
+                                            {% if i <= form.min_participants %}required{% endif %}
+                                            placeholder="Enter full name"
+                                            class="form-input participant-field"
+                                            data-participant="{{ i }}"
+                                        >
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="participant_{{ i }}_roll" class="form-label">
+                                            Roll Number <span class="text-red-500">*</span>
+                                        </label>
+                                        <input 
+                                            type="text" 
+                                            id="participant_{{ i }}_roll" 
+                                            name="participant_{{ i }}_roll" 
+                                            {% if i <= form.min_participants %}required{% endif %}
+                                            placeholder="Enter roll number"
+                                            class="form-input participant-field"
+                                            data-participant="{{ i }}"
+                                        >
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="participant_{{ i }}_email" class="form-label">
+                                            Email Address <span class="text-red-500">*</span>
+                                        </label>
+                                        <input 
+                                            type="email" 
+                                            id="participant_{{ i }}_email" 
+                                            name="participant_{{ i }}_email" 
+                                            {% if i <= form.min_participants %}required{% endif %}
+                                            placeholder="Enter email address"
+                                            class="form-input participant-field"
+                                            data-participant="{{ i }}"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Custom Fields (from template) -->
+                {% if form.custom_fields is defined %}
+                {% for field in form.custom_fields %}
+                <div class="form-group">
+                    <label for="{{ field.name }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.required %}
+                        <span class="text-red-500">*</span>
+                        {% endif %}
+                    </label>
+
+                    {% if field.type == 'text' or field.type == 'email' or field.type == 'tel' %}
+                    <input 
+                        type="{{ field.type }}" 
+                        id="{{ field.name }}" 
+                        name="{{ field.name }}" 
+                        {% if field.required %}required{% endif %}
+                        placeholder="{{ field.placeholder }}"
+                        class="form-input"
+                    >
+
+                    {% elif field.type == 'select' %}
+                    <select 
+                        id="{{ field.name }}" 
+                        name="{{ field.name }}" 
+                        {% if field.required %}required{% endif %}
+                        class="form-input"
+                    >
+                        <option value="">-- Select --</option>
+                        {% for option in field.options %}
+                        <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+
+                    {% elif field.type == 'textarea' %}
+                    <textarea 
+                        id="{{ field.name }}" 
+                        name="{{ field.name }}" 
+                        {% if field.required %}required{% endif %}
+                        {% if field.maxlength %}maxlength="{{ field.maxlength }}"{% endif %}
+                        placeholder="{{ field.placeholder }}"
+                        rows="5"
+                        class="form-input"
+                    ></textarea>
+                    {% if field.maxlength %}
+                    <p class="helper-text">Maximum {{ field.maxlength }} characters</p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+                
+                <!-- Legacy support: Old form.fields structure -->
+                {% if form.fields is defined %}
                 {% for field in form.fields %}
                 <div class="form-group">
                     <label for="{{ field.name }}" class="form-label">
@@ -148,6 +335,7 @@
                     {% endif %}
                 </div>
                 {% endfor %}
+                {% endif %}
 
                 {% if form.payment_enabled and form.payment_amount %}
                 <!-- Payment Section -->
@@ -279,6 +467,40 @@
 </div>
 
 <script>
+// Update participant fields visibility based on selection
+function updateParticipantFields() {
+    const numSelect = document.getElementById('num_participants');
+    if (!numSelect) return;
+    
+    const numParticipants = parseInt(numSelect.value) || 1;
+    const maxParticipants = {{ form.max_participants if form and form.max_participants is defined else 1 }};
+    
+    for (let i = 1; i <= maxParticipants; i++) {
+        const participantCard = document.getElementById(`participant-${i}`);
+        if (participantCard) {
+            if (i <= numParticipants) {
+                participantCard.style.display = 'block';
+                // Make fields required
+                const fields = participantCard.querySelectorAll('.participant-field');
+                fields.forEach(field => field.required = true);
+            } else {
+                participantCard.style.display = 'none';
+                // Remove required and clear values
+                const fields = participantCard.querySelectorAll('.participant-field');
+                fields.forEach(field => {
+                    field.required = false;
+                    field.value = '';
+                });
+            }
+        }
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateParticipantFields();
+});
+
 // Notification function to show visual feedback
 function showNotification(title, message, type = 'info') {
     // Create notification element
@@ -518,9 +740,12 @@ registrationForm.addEventListener('submit', async function(e) {
                 }
             } else if (result.success === true) {
                 // No payment required - show success message
+                console.log('Registration response:', result);
+                console.log('Registration ID from server:', result.registration_id);
                 // Update registration ID and QR code
                 if (result.registration_id) {
                     document.getElementById('displayRegistrationId').textContent = result.registration_id;
+                    console.log('Set displayRegistrationId to:', result.registration_id);
                 }
                 if (result.qr_code) {
                     document.getElementById('qrCodeImage').src = 'data:image/png;base64,' + result.qr_code;
@@ -546,6 +771,11 @@ registrationForm.addEventListener('submit', async function(e) {
                 
                 // Show browser notification
                 showNotification('Registration Successful! ✅', 'Your registration has been submitted.', 'success');
+                
+                // Reset button to success state (registration complete)
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Registration Complete';
             } else {
                 errorText.textContent = result.error || 'Unexpected response from server';
                 errorMsg.classList.remove('hidden');
@@ -996,6 +1226,109 @@ body[data-theme='dark'] .empty-state i {
     }
     .form-card {
         padding: 1.5rem;
+    }
+}
+
+/* Participant Cards Styles */
+.participants-section {
+    background: var(--card-bg, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+}
+
+.participant-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+}
+
+.participant-card:last-child {
+    margin-bottom: 0;
+}
+
+.participant-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.participant-number {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    color: #2563eb;
+    font-size: 0.95rem;
+}
+
+.participant-number i {
+    background: linear-gradient(135deg, #2563eb, #38bdf8);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+}
+
+.participant-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.participant-fields .form-group {
+    background: #f8fafc;
+    padding: 0.75rem;
+}
+
+.participant-fields .form-label {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+}
+
+.participant-fields .form-input {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+}
+
+/* Dark mode for participant cards */
+body[data-theme='dark'] .participants-section {
+    background: #0b1120;
+    border-color: #1e293b;
+}
+
+body[data-theme='dark'] .participant-card {
+    background: #0f172a;
+    border-color: #1e293b;
+}
+
+body[data-theme='dark'] .participant-header {
+    border-color: #1e293b;
+}
+
+body[data-theme='dark'] .participant-number {
+    color: #60a5fa;
+}
+
+body[data-theme='dark'] .participant-fields .form-group {
+    background: #0b1120;
+    border-color: #1e293b;
+}
+
+@media (max-width: 640px) {
+    .participant-fields {
+        grid-template-columns: 1fr;
     }
 }
 </style>
