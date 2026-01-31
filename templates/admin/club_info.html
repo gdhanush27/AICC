@@ -183,6 +183,49 @@
                 </div>
                 
                 <div class="form-group">
+                    <h3 style="margin-top: 2rem; margin-bottom: 1rem; color: var(--text-primary);">
+                        <i class="fas fa-key"></i> API Configuration
+                    </h3>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="groq_api_key">Groq API Key (Chatbot)</label>
+                        <input type="password" id="groq_api_key" name="groq_api_key" 
+                               value="{{ club_info.get('api_config', {}).get('GROQ_API_KEY', '') }}" 
+                               placeholder="gsk_...">
+                        <small style="color: var(--admin-gray-light); display: block; margin-top: 5px;">
+                            Get your API key from <a href="https://console.groq.com/keys" target="_blank">console.groq.com</a>
+                        </small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="groq_model">Groq Model</label>
+                        <select id="groq_model" name="groq_model">
+                            <option value="llama-3.1-8b-instant" {% if club_info.get('api_config', {}).get('GROQ_MODEL') == 'llama-3.1-8b-instant' %}selected{% endif %}>llama-3.1-8b-instant (Fast)</option>
+                            <option value="llama-3.3-70b-versatile" {% if club_info.get('api_config', {}).get('GROQ_MODEL') == 'llama-3.3-70b-versatile' %}selected{% endif %}>llama-3.3-70b-versatile (Powerful)</option>
+                            <option value="mixtral-8x7b-32768" {% if club_info.get('api_config', {}).get('GROQ_MODEL') == 'mixtral-8x7b-32768' %}selected{% endif %}>mixtral-8x7b-32768</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="razorpay_key_id">Razorpay Key ID</label>
+                        <input type="text" id="razorpay_key_id" name="razorpay_key_id" 
+                               value="{{ club_info.get('api_config', {}).get('RAZORPAY_KEY_ID', '') }}" 
+                               placeholder="rzp_test_...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="razorpay_key_secret">Razorpay Key Secret</label>
+                        <input type="password" id="razorpay_key_secret" name="razorpay_key_secret" 
+                               value="{{ club_info.get('api_config', {}).get('RAZORPAY_KEY_SECRET', '') }}" 
+                               placeholder="Your Razorpay secret key">
+                    </div>
+                </div>
+                
+                <div class="form-group">
                     <label for="logo_image">Upload Logo</label>
                     <input type="file" id="logo_image" name="logo_image" accept="image/*">
                     <small style="color: var(--admin-gray-light); display: block; margin-top: 5px;">

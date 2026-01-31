@@ -1,14 +1,5 @@
 [
     {
-        "name": "Danakumar",
-        "role": "President",
-        "year": "4th Year",
-        "domain": "CSD",
-        "image": "/static/uploads/20260129_233216_7dc1acf2-59e2-41bf-836e-22c4553e3c2d.png",
-        "linkedin": "http://10.108.98.158:5000/admin/members",
-        "github": "http://10.108.98.158:5000/admin/members"
-    },
-    {
         "name": "Sanjai R",
         "role": "Secretary",
         "year": "4th Year",

@@ -1,213 +1,216 @@
-[
-    {
-        "id": 1,
-        "name": "Thinkathon",
-        "date": "2026-01-31",
-        "time": "TBA",
-        "location": "AI BLOCK",
-        "description": "A thinking and innovation challenge for students.",
-        "how": "Register and participate in the event.",
-        "rules": [
-            "Registration is mandatory\r",
-            "Follow event guidelines\r",
-            "Team participation encouraged"
-        ],
-        "coordinators": [
-            {
-                "name": "Sanjai R",
-                "role": "Secretary",
-                "phone": "+91 99422 35410",
-                "email": "kecaicodingclub@gmail.com"
-            }
-        ],
-        "status": "upcoming",
-        "image": "/static/uploads/20260127_130409_thinkathon.webp",
-        "registration_type": "internal",
-        "register_link": "#",
-        "template_id": 1,
-        "registration_deadline": {
-            "date": "2026-01-30",
-            "message": "Register now!"
+{
+    "next_id": 8,
+    "events": [
+        {
+            "id": 1,
+            "name": "Thinkathon",
+            "date": "2026-01-31",
+            "time": "TBA",
+            "location": "AI BLOCK",
+            "description": "A thinking and innovation challenge for students.",
+            "how": "Register and participate in the event.",
+            "rules": [
+                "Registration is mandatory\r",
+                "Follow event guidelines\r",
+                "Team participation encouraged"
+            ],
+            "coordinators": [
+                {
+                    "name": "Sanjai R",
+                    "role": "Secretary",
+                    "phone": "+91 99422 35410",
+                    "email": "kecaicodingclub@gmail.com"
+                }
+            ],
+            "status": "upcoming",
+            "image": "/static/uploads/20260127_130409_thinkathon.webp",
+            "registration_type": "internal",
+            "register_link": "#",
+            "template_id": 1,
+            "registration_deadline": {
+                "date": "2026-01-31",
+                "message": "Register now!"
+            },
+            "registration_file": "data/registrations/thinkathon_1_registrations.json",
+            "allow_registration": true
         },
-        "registration_file": "data/registrations/thinkathon_1_registrations.json",
-        "allow_registration": true
-    },
-    {
-        "id": 2,
-        "name": "Workshop",
-        "date": "2026-01-29",
-        "time": "2nd week of Sep'25-3rd yrs & 3rd week of Feb'26-2nd yrs",
-        "location": "AI BLOCK",
-        "description": "Hands-on workshop for students on AI and coding topics.",
-        "how": "Attend the workshop sessions.",
-        "rules": [
-            "Attendance is mandatory\r",
-            "Bring your laptop\r",
-            "Active participation required"
-        ],
-        "coordinators": [
-            {
-                "name": "Rashmika K R",
-                "role": "Secretary",
-                "phone": "+91 76676 90991",
-                "email": "kecaicodingclub@gmail.com"
+        {
+            "id": 2,
+            "name": "Workshop",
+            "date": "2026-01-29",
+            "time": "2nd week of Sep'25-3rd yrs & 3rd week of Feb'26-2nd yrs",
+            "location": "AI BLOCK",
+            "description": "Hands-on workshop for students on AI and coding topics.",
+            "how": "Attend the workshop sessions.",
+            "rules": [
+                "Attendance is mandatory\r",
+                "Bring your laptop\r",
+                "Active participation required"
+            ],
+            "coordinators": [
+                {
+                    "name": "Rashmika K R",
+                    "role": "Secretary",
+                    "phone": "+91 76676 90991",
+                    "email": "kecaicodingclub@gmail.com"
+                }
+            ],
+            "status": "upcoming",
+            "image": "/static/img/poster/workshop1.webp",
+            "registration_type": "internal",
+            "register_link": "#",
+            "template_id": 2,
+            "registration_deadline": {
+                "date": "2026-01-30",
+                "message": "Register now!"
             }
-        ],
-        "status": "upcoming",
-        "image": "/static/img/poster/workshop1.webp",
-        "registration_type": "internal",
-        "register_link": "#",
-        "template_id": 2,
-        "registration_deadline": {
-            "date": "2026-01-30",
-            "message": "Register now!"
-        }
-    },
-    {
-        "id": 3,
-        "name": "HCS",
-        "date": "TBA",
-        "time": "TBA",
-        "location": "AI BLOCK",
-        "description": "Hackathon and coding competition.",
-        "how": "Register and form teams to participate.",
-        "rules": [
-            "Team size: 2-4 members",
-            "Follow coding standards",
-            "Submit on time"
-        ],
-        "coordinators": [
-            {
-                "name": "Sanjai R",
-                "role": "Secretary",
-                "phone": "+91 99422 35410",
-                "email": "kecaicodingclub@gmail.com"
-            }
-        ],
-        "status": "upcoming",
-        "image": "/static/img/poster/hcs.webp",
-        "registration_type": "internal",
-        "register_link": "#",
-        "template_id": 1,
-        "registration_deadline": {
-            "date": "2026-01-30",
-            "message": "Coming soon!"
-        }
-    },
-    {
-        "id": 4,
-        "name": "Hacksphere",
-        "date": "2026-02-28",
-        "time": "4th week of Feb'26",
-        "location": "AI BLOCK",
-        "description": "Major hackathon event of the club.",
-        "how": "Register and participate in the hackathon.",
-        "rules": [
-            "Team participation required",
-            "Follow hackathon rules",
-            "Original work only"
-        ],
-        "coordinators": [
-            {
-                "name": "Rashmika K R",
-                "role": "Secretary",
-                "phone": "+91 76676 90991",
-                "email": "kecaicodingclub@gmail.com"
-            }
-        ],
-        "status": "upcoming",
-        "image": "/static/img/poster/hacksphere1.webp",
-        "registration_type": "external",
-        "register_link": "https://forms.google.com/your-form-link",
-        "template_id": null,
-        "registration_deadline": {
-            "date": "2026-02-25",
-            "message": "Register now!"
-        }
-    },
-    {
-        "id": 5,
-        "name": "Hackvotrix",
-        "date": "2025-09-12",
-        "time": "09:00 AM",
-        "location": "AI BLOCK",
-        "description": "Completed hackathon event.",
-        "how": "Event has been completed.",
-        "rules": [
-            "Event completed",
-            "Check gallery for photos"
-        ],
-        "coordinators": [
-            {
-                "name": "Sanjai R",
-                "role": "Secretary",
-                "phone": "+91 99422 35410",
-                "email": "kecaicodingclub@gmail.com"
-            }
-        ],
-        "status": "completed",
-        "image": "/static/img/poster/hackvotrix.webp",
-        "registration_type": "none",
-        "register_link": "#",
-        "template_id": null,
-        "registration_deadline": {
-            "date": "2025-09-10",
-            "message": "Event completed"
-        }
-    },
-    {
-        "id": 6,
-        "name": "Placement Talks",
-        "date": "TBA",
-        "time": "TBA",
-        "location": "AI BLOCK",
-        "description": "Career guidance and placement preparation talks.",
-        "how": "Attend the sessions.",
-        "rules": [
-            "Open to all students",
-            "Attendance recommended"
-        ],
-        "coordinators": [
-            {
-                "name": "Dr.K Logeswaran",
-                "role": "Faculty Coordinator",
-                "phone": "+91 96985 13850",
-                "email": "kecaicodingclub@gmail.com"
-            }
-        ],
-        "status": "completed",
-        "image": "/static/img/poster/placement_talks1.webp",
-        "registration_type": "none",
-        "register_link": "#",
-        "template_id": null,
-        "registration_deadline": {
+        },
+        {
+            "id": 3,
+            "name": "HCS",
             "date": "TBA",
-            "message": "Event completed"
+            "time": "TBA",
+            "location": "AI BLOCK",
+            "description": "Hackathon and coding competition.",
+            "how": "Register and form teams to participate.",
+            "rules": [
+                "Team size: 2-4 members",
+                "Follow coding standards",
+                "Submit on time"
+            ],
+            "coordinators": [
+                {
+                    "name": "Sanjai R",
+                    "role": "Secretary",
+                    "phone": "+91 99422 35410",
+                    "email": "kecaicodingclub@gmail.com"
+                }
+            ],
+            "status": "upcoming",
+            "image": "/static/img/poster/hcs.webp",
+            "registration_type": "internal",
+            "register_link": "#",
+            "template_id": 1,
+            "registration_deadline": {
+                "date": "2026-01-30",
+                "message": "Coming soon!"
+            }
+        },
+        {
+            "id": 4,
+            "name": "Hacksphere",
+            "date": "2026-02-28",
+            "time": "4th week of Feb'26",
+            "location": "AI BLOCK",
+            "description": "Major hackathon event of the club.",
+            "how": "Register and participate in the hackathon.",
+            "rules": [
+                "Team participation required",
+                "Follow hackathon rules",
+                "Original work only"
+            ],
+            "coordinators": [
+                {
+                    "name": "Rashmika K R",
+                    "role": "Secretary",
+                    "phone": "+91 76676 90991",
+                    "email": "kecaicodingclub@gmail.com"
+                }
+            ],
+            "status": "upcoming",
+            "image": "/static/img/poster/hacksphere1.webp",
+            "registration_type": "external",
+            "register_link": "https://forms.google.com/your-form-link",
+            "template_id": null,
+            "registration_deadline": {
+                "date": "2026-02-25",
+                "message": "Register now!"
+            }
+        },
+        {
+            "id": 5,
+            "name": "Hackvotrix",
+            "date": "2025-09-12",
+            "time": "09:00 AM",
+            "location": "AI BLOCK",
+            "description": "Completed hackathon event.",
+            "how": "Event has been completed.",
+            "rules": [
+                "Event completed",
+                "Check gallery for photos"
+            ],
+            "coordinators": [
+                {
+                    "name": "Sanjai R",
+                    "role": "Secretary",
+                    "phone": "+91 99422 35410",
+                    "email": "kecaicodingclub@gmail.com"
+                }
+            ],
+            "status": "completed",
+            "image": "/static/img/poster/hackvotrix.webp",
+            "registration_type": "none",
+            "register_link": "#",
+            "template_id": null,
+            "registration_deadline": {
+                "date": "2025-09-10",
+                "message": "Event completed"
+            }
+        },
+        {
+            "id": 6,
+            "name": "Placement Talks",
+            "date": "TBA",
+            "time": "TBA",
+            "location": "AI BLOCK",
+            "description": "Career guidance and placement preparation talks.",
+            "how": "Attend the sessions.",
+            "rules": [
+                "Open to all students",
+                "Attendance recommended"
+            ],
+            "coordinators": [
+                {
+                    "name": "Dr.K Logeswaran",
+                    "role": "Faculty Coordinator",
+                    "phone": "+91 96985 13850",
+                    "email": "kecaicodingclub@gmail.com"
+                }
+            ],
+            "status": "completed",
+            "image": "/static/img/poster/placement_talks1.webp",
+            "registration_type": "none",
+            "register_link": "#",
+            "template_id": null,
+            "registration_deadline": {
+                "date": "TBA",
+                "message": "Event completed"
+            }
+        },
+        {
+            "id": 7,
+            "name": "danakumar",
+            "date": "2026-02-14",
+            "time": "10 am - 5 pm",
+            "location": "KEC",
+            "description": "Descriptoin",
+            "how": "How It Works",
+            "status": "upcoming",
+            "image": "/static/uploads/20260129_232519_7dc1acf2-59e2-41bf-836e-22c4553e3c2d.png",
+            "rules": [
+                "Rules (one per line)\r",
+                "Rules (one per line)\r",
+                "Rules (one per line)"
+            ],
+            "coordinators": [],
+            "registration_type": "internal",
+            "template_id": 4,
+            "register_link": "#",
+            "registration_file": "data/registrations/danakumar_7_registrations.json",
+            "registration_deadline": {
+                "date": "2026-02-10",
+                "message": "Register now"
+            }
         }
-    },
-    {
-        "id": 7,
-        "name": "danakumar",
-        "date": "2026-02-14",
-        "time": "10 am - 5 pm",
-        "location": "KEC",
-        "description": "Descriptoin",
-        "how": "How It Works",
-        "status": "upcoming",
-        "image": "/static/uploads/20260129_232519_7dc1acf2-59e2-41bf-836e-22c4553e3c2d.png",
-        "rules": [
-            "Rules (one per line)\r",
-            "Rules (one per line)\r",
-            "Rules (one per line)"
-        ],
-        "coordinators": [],
-        "registration_type": "internal",
-        "template_id": 4,
-        "register_link": "#",
-        "registration_file": "data/registrations/danakumar_7_registrations.json",
-        "registration_deadline": {
-            "date": "2026-02-10",
-            "message": "Register now"
-        }
-    }
-]
+    ]
+}
