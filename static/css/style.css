@@ -815,11 +815,6 @@ ul {
     color: white;
 }
 
-.event-status.ongoing {
-    background: var(--warning);
-    color: white;
-}
-
 .event-status.completed {
     background: var(--border-color);
     color: var(--text-secondary);

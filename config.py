@@ -31,9 +31,8 @@ ALLOWED_EMAIL_DOMAINS = [
     'gmail.com'
 ]
 
-# Razorpay Payment Gateway Configuration
-KEY_ID_RAZOR = "rzp_test_S9K6cEXINpcvhY" 
-KEY_SECRET_RAZOR = "AYkLCQKCY4w18n8OUE2dwn5Y"
+# Note: Razorpay and Groq API keys are now stored in data/club_info.json
+# and can be edited via the Admin Panel > Club Information
 
 # Load all data from JSON files
 CLUB_INFO = load_json('club_info.json')

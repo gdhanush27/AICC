@@ -27,7 +27,45 @@ import io
 from html import escape as html_escape
 from io import BytesIO
 from flask_mail import Mail, Message
-from config import ALLOWED_EMAIL_DOMAINS, KEY_ID_RAZOR, KEY_SECRET_RAZOR
+from config import ALLOWED_EMAIL_DOMAINS
+
+# API keys are now loaded from club_info.json (editable in admin panel)
+# These are helper functions to get current API config
+def get_api_config():
+    """Get API configuration from club_info.json"""
+    club_info, _, _, _ = load_data()
+    return club_info.get('api_config', {})
+
+def get_groq_api_key():
+    return get_api_config().get('GROQ_API_KEY', '')
+
+def get_groq_model():
+    return get_api_config().get('GROQ_MODEL', 'llama-3.1-8b-instant')
+
+def get_razorpay_keys():
+    config = get_api_config()
+    return config.get('RAZORPAY_KEY_ID', ''), config.get('RAZORPAY_KEY_SECRET', '')
+
+# Cached events context for chatbot (updated when events change)
+_events_context_cache = None
+
+def update_events_context_cache(events_list=None):
+    """Update the cached events context string for chatbot"""
+    global _events_context_cache
+    if events_list is None:
+        events_list, _ = load_events_file()
+    _events_context_cache = "\n".join([
+        f"- {e.get('name')}: {e.get('description', 'No description')} | Date: {e.get('date')} | Status: {e.get('status')} | Location: {e.get('location')}"
+        for e in events_list
+    ])
+    return _events_context_cache
+
+def get_events_context():
+    """Get cached events context, building it if needed"""
+    global _events_context_cache
+    if _events_context_cache is None:
+        update_events_context_cache()
+    return _events_context_cache
 
 # Configure logging instead of print statements
 logging.basicConfig(level=logging.INFO)
@@ -206,7 +244,7 @@ def initialize_app_structure():
             "address": "Madurai, Tamil Nadu, India",
             "logo": "/static/img/aicc-logo.webp"
         },
-        'data/events.json': [],
+        'data/events.json': {"next_id": 1, "events": []},
         'data/members.json': [],
         'data/gallery.json': []
     }
@@ -252,7 +290,17 @@ def load_data():
     with open(os.path.join(data_dir, 'club_info.json'), 'r') as f:
         club_info = json.load(f)
     with open(os.path.join(data_dir, 'events.json'), 'r') as f:
-        events = json.load(f)
+        events_data = json.load(f)
+        # Handle both old array format and new object format
+        if isinstance(events_data, list):
+            # Migrate old format: convert array to object with next_id
+            max_id = max([e.get('id', 0) for e in events_data], default=0)
+            events = events_data
+            # Save migrated format
+            with open(os.path.join(data_dir, 'events.json'), 'w') as fw:
+                json.dump({"next_id": max_id + 1, "events": events}, fw, indent=4)
+        else:
+            events = events_data.get('events', [])
     with open(os.path.join(data_dir, 'members.json'), 'r') as f:
         members = json.load(f)
     with open(os.path.join(data_dir, 'gallery.json'), 'r') as f:
@@ -264,6 +312,30 @@ CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
 
 # Configure mail with loaded data
 configure_mail()
+
+def load_events_file():
+    """Load events.json and return (events_list, next_id)"""
+    events_file = os.path.join(PROJECT_ROOT, 'data/events.json')
+    with open(events_file, 'r') as f:
+        events_data = json.load(f)
+    
+    if isinstance(events_data, list):
+        # Old format - migrate
+        events = events_data
+        next_id = max([e.get('id', 0) for e in events], default=0) + 1
+    else:
+        events = events_data.get('events', [])
+        next_id = events_data.get('next_id', 1)
+    
+    return events, next_id
+
+def save_events_file(events, next_id):
+    """Save events list with next_id to events.json"""
+    events_file = os.path.join(PROJECT_ROOT, 'data/events.json')
+    with open(events_file, 'w') as f:
+        json.dump({"next_id": next_id, "events": events}, f, indent=4)
+    # Update chatbot context cache
+    update_events_context_cache(events)
 
 # Add cache-busting filter
 @app.template_filter('cache_bust')
@@ -440,8 +512,9 @@ def create_razorpay_order(order_id, amount, customer_name, customer_email, custo
         # Razorpay API endpoint
         url = "https://api.razorpay.com/v1/orders"
         
-        # Basic Auth using key_id and key_secret
-        auth = (KEY_ID_RAZOR, KEY_SECRET_RAZOR)
+        # Basic Auth using key_id and key_secret from config
+        key_id, key_secret = get_razorpay_keys()
+        auth = (key_id, key_secret)
         
         headers = {
             "Content-Type": "application/json"
@@ -498,7 +571,7 @@ def home():
     sorted_events = sorted(EVENTS, key=lambda x: (
         not bool(x.get('register_link')),  # Events with register_link first
         x.get('status') != 'upcoming',     # Then upcoming events
-        x.get('status') == 'completed'     # Then ongoing, then completed
+        x.get('status') == 'completed'     # Then completed
     ))
     
     # Find the next event with an active registration deadline (sorted by earliest deadline)
@@ -506,8 +579,8 @@ def home():
     valid_deadline_events = []
     
     for event in EVENTS:
-        # Only consider upcoming or ongoing events with registration deadlines
-        if event.get('status') in ['upcoming', 'ongoing']:
+        # Only consider upcoming events with registration deadlines
+        if event.get('status') == 'upcoming':
             if event.get('registration_deadline') and event.get('register_link'):
                 deadline_date = event['registration_deadline']['date']
                 try:
@@ -555,12 +628,121 @@ def events():
     sorted_events = sorted(EVENTS, key=lambda x: (
         not bool(x.get('register_link')),  # Events with register_link first
         x.get('status') != 'upcoming',     # Then upcoming events
-        x.get('status') == 'completed'     # Then ongoing, then completed
+        x.get('status') == 'completed'     # Then completed
     ))
     return render_template('events.html', 
                          events=sorted_events,
                          club_info=CLUB_INFO,
                          contact=CLUB_INFO)
+
+@app.route('/api/chatbot', methods=['POST'])
+def chatbot_api():
+    """Chatbot API endpoint using Groq"""
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
+        
+        if not user_message:
+            return jsonify({'error': 'Message is required'}), 400
+        
+        # Get cached events context
+        events_context = get_events_context()
+        
+        # Get contact details from club_info
+        club_info, _, _, _ = load_data()
+        
+        # Build contact context
+        faculty_contacts = "\n".join([
+            f"  - {f.get('name')}: {f.get('phone')}" 
+            for f in club_info.get('faculty_coordinators', [])
+        ])
+        secretary_contacts = "\n".join([
+            f"  - {s.get('name')}: {s.get('phone')}" 
+            for s in club_info.get('secretaries', [])
+        ])
+        
+        system_prompt = f"""You are a helpful assistant for AI Coding Club (AICC) at Kongu Engineering College. You help users with information about club events, registrations, and general queries.
+
+About AICC:
+- AI Coding Club empowers students to learn, build, and innovate in AI and software development
+- We conduct workshops, hackathons, and collaborative projects
+- Open to all students interested in AI, coding, and technology
+- Department: {club_info.get('department', 'Department of AI')}
+- College: {club_info.get('college', 'Kongu Engineering College')}
+
+Contact Information:
+- Email: {club_info.get('email', 'kecaicodingclub@gmail.com')}
+- Instagram: {club_info.get('instagram', '')}
+- LinkedIn: {club_info.get('linkedin', '')}
+- Address: {club_info.get('address', '')}
+
+Faculty Coordinators:
+{faculty_contacts}
+
+Student Secretaries:
+{secretary_contacts}
+
+Current Events:
+{events_context}
+
+Website Features for Users:
+- Home Page: Overview of the club, recent updates, and quick links
+- Events Page: Browse all upcoming and past events, filter by status
+- Event Details: Click any event to see full details, schedule, and requirements
+- Registration: Click "Register Now" on upcoming events to sign up (some events may require payment via Razorpay)
+- Attendance Check: After attending an event, check your attendance status at /attendance-check using your email or registration ID
+- Gallery: View photos from past events and activities
+- Members: See our team - coordinators, leads, and members
+- About: Learn more about AICC's mission and activities
+
+How to Register for Events:
+1. Go to Events page and find the event
+2. Click "View Details" then "Register Now"
+3. Fill in your details (name, email, roll number, etc.)
+4. If payment is required, complete payment via Razorpay
+5. You'll receive a confirmation email with QR code
+
+Guidelines:
+- Be friendly and concise
+- If asked about events, provide relevant details from the events list
+- For contact queries, provide the relevant contact details
+- For registration queries, guide users step by step
+- If you don't know something specific, say so politely
+- Keep responses brief (2-3 sentences max unless more detail is needed)
+- IMPORTANT: Never use markdown formatting. No tables, no bold (**), no italics (*), no headers (#), no code blocks. Use plain text only with simple line breaks."""
+        
+        # Call Groq API
+        response = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {get_groq_api_key()}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'model': get_groq_model(),
+                'messages': [
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': user_message}
+                ],
+                'max_tokens': 300,
+                'temperature': 0.7
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            bot_reply = result['choices'][0]['message']['content']
+            return jsonify({'reply': bot_reply})
+        else:
+            logger.error(f"Groq API error: {response.status_code} - {response.text}")
+            return jsonify({'error': 'Failed to get response from AI'}), 500
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'error': 'Request timed out. Please try again.'}), 504
+    except Exception as e:
+        logger.error(f"Chatbot error: {str(e)}")
+        return jsonify({'error': 'An error occurred'}), 500
 
 @app.route('/events/<int:event_id>')
 def event_detail(event_id):
@@ -798,18 +980,19 @@ def api_register_event(event_slug):
         event_id = data.get('event_id')
         event = None
         events = None  # Will hold the events list for saving
+        next_id = None  # Will hold the next_id for saving
         
         if event_id is not None:
             try:
                 event_id_int = int(event_id)
-                _, events, _, _ = load_data()
+                events, next_id = load_events_file()
                 event = next((e for e in events if e.get('id') == event_id_int), None)
             except (TypeError, ValueError):
                 pass
         
         # If no event found by ID, try to find by slug
         if not event:
-            _, events, _, _ = load_data()
+            events, next_id = load_events_file()
             event = next((e for e in events if slugify(e.get('name', '')) == event_slug), None)
         
         if event:
@@ -855,11 +1038,10 @@ def api_register_event(event_slug):
             logger.debug(f"Creating new registration file: {reg_file}")
             
             # Update event with registration file path
-            if event:
+            if event and next_id is not None:
                 event['registration_file'] = f'data/registrations/{reg_filename}'
-                # Save events.json with the updated event using safe write
-                events_file = os.path.join(PROJECT_ROOT, 'data', 'events.json')
-                safe_json_write(events_file, events)
+                # Save events.json with the updated event using save_events_file
+                save_events_file(events, next_id)
                 # Reload global EVENTS
                 global EVENTS
                 EVENTS = events
@@ -951,7 +1133,7 @@ def api_register_event(event_slug):
                             'order_id': payment_order['order_id'],
                             'amount': payment_order['amount'],
                             'currency': payment_order['currency'],
-                            'key_id': KEY_ID_RAZOR,
+                            'key_id': get_razorpay_keys()[0],
                             'registration_data': data,  # Send back to frontend for saving after payment
                             'registration_file': os.path.basename(reg_file)  # Filename to save to
                         }), 200
@@ -1054,7 +1236,8 @@ def payment_verify():
         # This prevents replay attacks and ensures payment is actually captured
         try:
             verify_url = f"https://api.razorpay.com/v1/payments/{razorpay_payment_id}"
-            auth = (KEY_ID_RAZOR, KEY_SECRET_RAZOR)
+            key_id, key_secret = get_razorpay_keys()
+            auth = (key_id, key_secret)
             response = requests.get(verify_url, auth=auth)
             
             if response.status_code == 200:
@@ -1281,7 +1464,8 @@ def payment_status(order_id):
     try:
         # Verify with Razorpay API
         verify_url = f"https://api.razorpay.com/v1/orders/{order_id}"
-        auth = (KEY_ID_RAZOR, KEY_SECRET_RAZOR)
+        key_id, key_secret = get_razorpay_keys()
+        auth = (key_id, key_secret)
         response = requests.get(verify_url, auth=auth)
         
         if response.status_code == 200:
@@ -1499,11 +1683,15 @@ def admin_login():
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session['admin_logged_in'] = True
             flash('Successfully logged in!', 'success')
+            # Redirect to 'next' URL if provided, otherwise to dashboard
+            next_url = request.args.get('next') or request.form.get('next')
+            if next_url and next_url.startswith('/'):
+                return redirect(next_url)
             return redirect(url_for('admin_dashboard'))
         else:
             flash('Invalid credentials. Please try again.', 'error')
     
-    return render_template('admin/login.html')
+    return render_template('admin/login.html', next=request.args.get('next', ''))
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -1518,7 +1706,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not session.get('admin_logged_in'):
             flash('Please login to access the admin panel.', 'error')
-            return redirect(url_for('admin_login'))
+            return redirect(url_for('admin_login', next=request.full_path))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -1602,6 +1790,12 @@ def admin_club_info():
                 'MAIL_PASSWORD': request.form.get('mail_password', ''),
                 'MAIL_DEFAULT_SENDER': request.form.get('mail_default_sender', '')
             },
+            'api_config': {
+                'GROQ_API_KEY': request.form.get('groq_api_key', ''),
+                'GROQ_MODEL': request.form.get('groq_model', 'llama-3.1-8b-instant'),
+                'RAZORPAY_KEY_ID': request.form.get('razorpay_key_id', ''),
+                'RAZORPAY_KEY_SECRET': request.form.get('razorpay_key_secret', '')
+            },
             'faculty_coordinators': CLUB_INFO.get('faculty_coordinators', []),
             'secretaries': CLUB_INFO.get('secretaries', [])
         }
@@ -1635,7 +1829,15 @@ def admin_create_event():
     if request.method == 'POST':
         # Reload events from file
         with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
-            events = json.load(f)
+            events_data = json.load(f)
+        
+        # Handle both old array format and new object format
+        if isinstance(events_data, list):
+            events = events_data
+            next_id = max([e.get('id', 0) for e in events], default=0) + 1
+        else:
+            events = events_data.get('events', [])
+            next_id = events_data.get('next_id', 1)
         
         # Handle image upload
         image_url = ''
@@ -1650,9 +1852,9 @@ def admin_create_event():
                 file.save(filepath)
                 image_url = f"/static/uploads/{filename}"
         
-        # Add new event
+        # Add new event using next_id
         new_event = {
-            'id': max([e.get('id', 0) for e in events], default=0) + 1,
+            'id': next_id,
             'name': request.form.get('name'),
             'date': request.form.get('date'),
             'time': request.form.get('time'),
@@ -1707,8 +1909,9 @@ def admin_create_event():
         
         events.append(new_event)
         
+        # Save with incremented next_id
         with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
-            json.dump(events, f, indent=4)
+            json.dump({"next_id": next_id + 1, "events": events}, f, indent=4)
         
         # Reload data
         CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
@@ -1731,26 +1934,25 @@ def admin_create_event():
 @app.route('/admin/events/<int:event_id>/delete', methods=['POST'])
 @admin_required
 def admin_delete_event(event_id):
-    """Delete an event"""
+    """Archive an event by marking it as completed (preserves registration data for attendance checks)"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     
-    with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
-        events = json.load(f)
+    events, next_id = load_events_file()
     
-    # Find the event and delete its image before removing
-    event_to_delete = next((e for e in events if e.get('id') == event_id), None)
-    if event_to_delete:
-        delete_old_image(event_to_delete.get('image', ''))
+    # Find the event and mark as completed instead of deleting
+    # This preserves registration data so students can still check their attendance
+    event_to_archive = next((e for e in events if e.get('id') == event_id), None)
+    if event_to_archive:
+        event_to_archive['status'] = 'completed'
+        event_to_archive['registration_type'] = 'none'  # Disable registration
+        event_to_archive['allow_registration'] = False
     
-    events = [e for e in events if e.get('id') != event_id]
-    
-    with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
-        json.dump(events, f, indent=4)
+    save_events_file(events, next_id)
     
     # Reload data
     CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
     
-    flash('Event deleted successfully!', 'success')
+    flash('Event archived successfully! Registration data preserved for attendance checks.', 'success')
     return redirect(url_for('admin_events'))
 
 @app.route('/admin/members', methods=['GET', 'POST'])
@@ -1876,8 +2078,7 @@ def admin_edit_event(event_id):
     """Edit an existing event"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     
-    with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
-        events = json.load(f)
+    events, next_id = load_events_file()
     
     event = next((e for e in events if e.get('id') == event_id), None)
     if not event:
@@ -1966,8 +2167,7 @@ def admin_edit_event(event_id):
             # Remove deadline if fields are empty
             del event['registration_deadline']
         
-        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
-            json.dump(events, f, indent=4)
+        save_events_file(events, next_id)
         
         # Reload data
         CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
@@ -1994,8 +2194,7 @@ def admin_delete_event_image(event_id):
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     
     try:
-        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
-            events = json.load(f)
+        events, next_id = load_events_file()
         
         event = next((e for e in events if e.get('id') == event_id), None)
         if not event:
@@ -2007,8 +2206,7 @@ def admin_delete_event_image(event_id):
             event['image'] = ''
             
             # Save updated events
-            with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
-                json.dump(events, f, indent=4)
+            save_events_file(events, next_id)
             
             # Reload data
             CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
@@ -2648,8 +2846,7 @@ def admin_toggle_registration(event_id):
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     
     try:
-        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'r') as f:
-            events = json.load(f)
+        events, next_id = load_events_file()
         
         event = next((e for e in events if e.get('id') == event_id), None)
         if not event:
@@ -2659,8 +2856,7 @@ def admin_toggle_registration(event_id):
         current_status = event.get('allow_registration', True)  # Default to True if not set
         event['allow_registration'] = not current_status
         
-        with open(os.path.join(PROJECT_ROOT, 'data/events.json'), 'w') as f:
-            json.dump(events, f, indent=4)
+        save_events_file(events, next_id)
         
         # Reload data
         CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
