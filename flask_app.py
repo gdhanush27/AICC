@@ -1220,9 +1220,10 @@ def payment_verify():
         # This is critical security step - never trust client-side verification alone
         # hmac and hashlib are imported at module level
         
+        _, key_secret = get_razorpay_keys()
         message = f"{razorpay_order_id}|{razorpay_payment_id}"
         expected_signature = hmac.new(
-            KEY_SECRET_RAZOR.encode(),
+            key_secret.encode(),
             message.encode(),
             hashlib.sha256
         ).hexdigest()
@@ -1500,9 +1501,10 @@ def payment_callback():
     # Verify signature on server
     try:
         # hmac and hashlib are imported at module level
+        _, key_secret = get_razorpay_keys()
         message = f"{order_id}|{payment_id}"
         expected_signature = hmac.new(
-            KEY_SECRET_RAZOR.encode(),
+            key_secret.encode(),
             message.encode(),
             hashlib.sha256
         ).hexdigest()
