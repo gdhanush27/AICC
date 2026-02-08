@@ -6,37 +6,31 @@
     <title>Manage Events - AICC Admin</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="admin-dashboard">
     <nav class="admin-nav">
         <div class="nav-brand">
             <i class="fas fa-shield-alt"></i>
-            AICC Admin Panel
+            <span class="nav-brand-text">AICC Admin</span>
         </div>
         <div class="nav-actions">
-            <button id="theme-toggle" class="btn-theme">
-                <i class="fas fa-sun"></i>
-            </button>
-            <a href="{{ url_for('admin_dashboard') }}" class="btn-back">
-                <i class="fas fa-arrow-left"></i>
-                Dashboard
-            </a>
-            <a href="{{ url_for('admin_logout') }}" class="btn-logout">
-                <i class="fas fa-sign-out-alt"></i>
-                Logout
-            </a>
+            <button id="theme-toggle" class="btn-theme"><i class="fas fa-sun"></i></button>
+            <a href="{{ url_for('admin_dashboard') }}" class="btn-back"><i class="fas fa-arrow-left"></i><span class="hide-mobile"> Dashboard</span></a>
+            <a href="{{ url_for('admin_logout') }}" class="btn-logout"><i class="fas fa-sign-out-alt"></i><span class="hide-mobile"> Logout</span></a>
         </div>
     </nav>
     
     <div class="admin-container">
-        <div class="admin-header">
-            <div>
-                <h1>Manage Events</h1>
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-header-text">
+                <h1><i class="fas fa-calendar-alt"></i> Manage Events</h1>
                 <p>View and manage all club events</p>
             </div>
-            <a href="{{ url_for('admin_create_event') }}" class="btn-primary">
+            <a href="{{ url_for('admin_create_event') }}" class="btn-create">
                 <i class="fas fa-plus"></i>
-                Create Event
+                <span>Create Event</span>
             </a>
         </div>
         
@@ -50,55 +44,69 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
+
+        <!-- Events Count -->
+        {% if events %}
+        <div class="events-count">
+            <span class="count-chip"><i class="fas fa-layer-group"></i> {{ events|length }} event{{ 's' if events|length != 1 }}</span>
+            <span class="count-chip count-upcoming"><i class="fas fa-rocket"></i> {{ events|selectattr('status', 'equalto', 'upcoming')|list|length }} upcoming</span>
+            <span class="count-chip count-completed"><i class="fas fa-check"></i> {{ events|selectattr('status', 'equalto', 'completed')|list|length }} completed</span>
+        </div>
+        {% endif %}
         
+        <!-- Events Grid -->
         <div class="events-grid">
             {% for event in events %}
-            <div class="event-card">
-                <div class="event-card-image">
+            <div class="ecard {% if event.show_in_events == false %}ecard--hidden{% endif %}">
+                <!-- Image -->
+                <div class="ecard__img">
                     {% if event.image %}
-                    <img src="{{ event.image | cache_bust }}" alt="{{ event.name }}">
+                    <img src="{{ event.image | cache_bust }}" alt="{{ event.name }}" loading="lazy">
                     {% else %}
-                    <div class="event-card-image-placeholder">
-                        <i class="fas fa-calendar-alt"></i>
-                    </div>
+                    <div class="ecard__img-placeholder"><i class="fas fa-calendar-alt"></i></div>
                     {% endif %}
-                    <span class="event-badge event-badge-{{ event.status }}">
-                        {{ event.status }}
-                    </span>
-                </div>
-                <div class="event-card-content">
-                    <h3 class="event-card-title">{{ event.name }}</h3>
-                    <div class="event-card-meta">
-                        <div class="event-meta-item">
-                            <i class="fas fa-calendar"></i>
-                            <span>{{ event.date }}</span>
-                        </div>
-                        <div class="event-meta-item">
-                            <i class="fas fa-clock"></i>
-                            <span>{{ event.time }}</span>
-                        </div>
-                        <div class="event-meta-item">
-                            <i class="fas fa-map-marker-alt"></i>
-                            <span>{{ event.location }}</span>
-                        </div>
+                    <div class="ecard__badges">
+                        <span class="ebadge ebadge--{{ event.status }}">{{ event.status }}</span>
+                        {% if event.show_in_events == false %}
+                        <span class="ebadge ebadge--hidden"><i class="fas fa-eye-slash"></i> Hidden</span>
+                        {% endif %}
+                        {% if event.registration_type == 'internal' %}
+                        <span class="ebadge ebadge--reg"><i class="fas fa-clipboard-list"></i></span>
+                        {% endif %}
                     </div>
-                    <p class="event-card-description">{{ event.description[:120] }}{% if event.description|length > 120 %}...{% endif %}</p>
                 </div>
-                <div class="event-card-actions">
+
+                <!-- Body -->
+                <div class="ecard__body">
+                    <h3 class="ecard__title">{{ event.name }}</h3>
+                    <div class="ecard__chips">
+                        <span class="echip"><i class="far fa-calendar"></i> {{ event.date }}</span>
+                        {% if event.time %}<span class="echip"><i class="far fa-clock"></i> {{ event.time }}</span>{% endif %}
+                        <span class="echip"><i class="fas fa-map-marker-alt"></i> {{ event.location }}</span>
+                    </div>
+                    <p class="ecard__desc">{{ event.description[:100] }}{% if event.description|length > 100 %}...{% endif %}</p>
+                </div>
+
+                <!-- Actions -->
+                <div class="ecard__actions">
+                    <button class="eact eact--vis {% if event.show_in_events == false %}eact--show{% endif %}" id="vis-btn-{{ event.id }}" onclick="toggleVisibility({{ event.id }})" title="{{ 'Show on public page' if event.show_in_events == false else 'Hide from public page' }}">
+                        <i class="fas fa-{{ 'eye' if event.show_in_events == false else 'eye-slash' }}"></i>
+                        <span>{{ 'Show' if event.show_in_events == false else 'Hide' }}</span>
+                    </button>
                     {% if event.registration_type == 'internal' %}
-                    <a href="{{ url_for('admin_view_registrations', event_id=event.id) }}" class="btn-action btn-view">
+                    <a href="{{ url_for('admin_view_registrations', event_id=event.id) }}" class="eact eact--regs" title="View Registrations">
                         <i class="fas fa-users"></i>
-                        Registrations
+                        <span>Regs</span>
                     </a>
                     {% endif %}
-                    <a href="{{ url_for('admin_edit_event', event_id=event.id) }}" class="btn-action btn-edit">
-                        <i class="fas fa-edit"></i>
-                        Edit
+                    <a href="{{ url_for('admin_edit_event', event_id=event.id) }}" class="eact eact--edit" title="Edit Event">
+                        <i class="fas fa-pen"></i>
+                        <span>Edit</span>
                     </a>
-                    <form method="POST" action="{{ url_for('admin_delete_event', event_id=event.id) }}" style="display: inline;">
-                        <button type="submit" class="btn-action btn-delete" onclick="event.preventDefault(); showConfirm('Are you sure you want to delete this event?', () => this.form.submit());">
-                            <i class="fas fa-trash"></i>
-                            Delete
+                    <form method="POST" action="{{ url_for('admin_delete_event', event_id=event.id) }}" class="eact-form">
+                        <button type="submit" class="eact eact--del" title="Archive Event" onclick="event.preventDefault(); showConfirm('Archive this event? It will be marked as completed.', () => this.form.submit());">
+                            <i class="fas fa-archive"></i>
+                            <span>Archive</span>
                         </button>
                     </form>
                 </div>
@@ -107,13 +115,10 @@
             
             {% if not events %}
             <div class="empty-state">
-                <i class="fas fa-calendar-times"></i>
+                <div class="empty-icon"><i class="fas fa-calendar-plus"></i></div>
                 <h3>No Events Yet</h3>
                 <p>Create your first event to get started</p>
-                <a href="{{ url_for('admin_create_event') }}" class="btn-primary">
-                    <i class="fas fa-plus"></i>
-                    Create Event
-                </a>
+                <a href="{{ url_for('admin_create_event') }}" class="btn-create"><i class="fas fa-plus"></i> Create Event</a>
             </div>
             {% endif %}
         </div>
@@ -123,13 +128,8 @@
     <div id="confirmModal" class="custom-modal">
         <div class="modal-overlay"></div>
         <div class="modal-content">
-            <div class="modal-header">
-                <i class="fas fa-exclamation-triangle"></i>
-                <h3>Confirm Action</h3>
-            </div>
-            <div class="modal-body">
-                <p id="confirmMessage">Are you sure?</p>
-            </div>
+            <div class="modal-header"><i class="fas fa-exclamation-triangle"></i><h3>Confirm Action</h3></div>
+            <div class="modal-body"><p id="confirmMessage">Are you sure?</p></div>
             <div class="modal-footer">
                 <button class="modal-btn btn-cancel" onclick="closeConfirmModal()">Cancel</button>
                 <button class="modal-btn btn-confirm" id="confirmButton">Confirm</button>
@@ -137,229 +137,235 @@
         </div>
     </div>
 
-    <style>
-    .admin-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-    }
-    
-    .events-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 1.5rem;
-        margin-top: 2rem;
-    }
-    
-    .event-card {
-        background: var(--card-bg, white);
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border: 1px solid var(--border-color, #e2e8f0);
-    }
-    
-    .event-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    }
-    
-    .event-card-image {
-        position: relative;
-        height: 200px;
-        overflow: hidden;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    
-    .event-card-image img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    
-    .event-card-image-placeholder {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 4rem;
-    }
-    
-    .event-badge {
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .event-badge-upcoming {
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-    }
-    
-    .event-badge-completed {
-        background: linear-gradient(135deg, #6b7280, #4b5563);
-        color: white;
-    }
-    
-    .event-badge-cancelled {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        color: white;
-    }
-    
-    .event-card-content {
-        padding: 1.25rem;
-    }
-    
-    .event-card-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--text-primary, #0f172a);
-        margin: 0 0 1rem 0;
-        line-height: 1.3;
-    }
-    
-    .event-card-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    .event-meta-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--text-secondary, #64748b);
-        font-size: 0.875rem;
-    }
-    
-    .event-meta-item i {
-        width: 16px;
-        color: var(--admin-primary, #667eea);
-    }
-    
-    .event-card-description {
-        color: var(--text-secondary, #64748b);
-        font-size: 0.9rem;
-        line-height: 1.5;
-        margin: 0;
-    }
-    
-    .event-card-actions {
-        padding: 1rem 1.25rem;
-        background: var(--admin-bg-light, #f8fafc);
-        border-top: 1px solid var(--border-color, #e2e8f0);
-        display: flex;
-        gap: 0.75rem;
-    }
-    
-    .btn-action {
-        flex: 1;
-        padding: 0.625rem 1rem;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.875rem;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        text-decoration: none;
-    }
-    
-    .btn-edit {
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
-        color: white;
-    }
-    
-    .btn-edit:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    }
-    
-    .btn-delete {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
-        color: white;
-    }
-    
-    .btn-delete:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-    }
-    
-    .empty-state {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 4rem 2rem;
-        background: var(--card-bg, white);
-        border-radius: 16px;
-        border: 2px dashed var(--border-color, #e2e8f0);
-    }
-    
-    .empty-state i {
-        font-size: 4rem;
-        color: var(--text-secondary, #94a3b8);
-        margin-bottom: 1rem;
-    }
-    
-    .empty-state h3 {
-        font-size: 1.5rem;
-        color: var(--text-primary, #0f172a);
-        margin: 0 0 0.5rem 0;
-    }
-    
-    .empty-state p {
-        color: var(--text-secondary, #64748b);
-        margin: 0 0 1.5rem 0;
-    }
-    
-    body[data-theme=dark] .event-card {
-        background: #0f172a;
-        border-color: #1e293b;
-    }
-    
-    body[data-theme=dark] .event-card-title {
-        color: #f1f5f9;
-    }
-    
-    body[data-theme=dark] .event-card-meta,
-    body[data-theme=dark] .event-card-description {
-        color: #94a3b8;
-    }
-    
-    body[data-theme=dark] .event-card-actions {
-        background: #0b1120;
-        border-color: #1e293b;
-    }
-    
-    body[data-theme=dark] .empty-state {
-        background: #0f172a;
-        border-color: #1e293b;
-    }
-    
-    body[data-theme=dark] .empty-state h3 {
-        color: #f1f5f9;
-    }
-    
-    .custom-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:10000;animation:fadeIn .2s ease}.custom-modal.show{display:flex;align-items:center;justify-content:center}.modal-overlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}.modal-content{position:relative;background:var(--card-bg,white);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:420px;width:90%;animation:slideUp .3s ease;border:1px solid var(--border-color,#e2e8f0)}@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}.modal-header{padding:1.5rem;border-bottom:1px solid var(--border-color,#e2e8f0);display:flex;align-items:center;gap:.75rem}.modal-header i{color:#f59e0b;font-size:1.5rem}.modal-header h3{margin:0;font-size:1.25rem;font-weight:700;color:var(--text-primary,#0f172a)}.modal-body{padding:1.5rem}.modal-body p{margin:0;color:var(--text-secondary,#64748b);font-size:1rem;line-height:1.6}.modal-footer{padding:1.5rem;border-top:1px solid var(--border-color,#e2e8f0);display:flex;gap:.75rem;justify-content:flex-end}.modal-btn{padding:.75rem 1.5rem;border-radius:10px;font-weight:600;border:none;cursor:pointer;transition:all .2s ease;font-size:.95rem}.btn-cancel{background:var(--card-bg,white);color:var(--text-primary,#0f172a);border:1px solid var(--border-color,#e2e8f0)}.btn-cancel:hover{background:#f8fafc}.btn-confirm{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;box-shadow:0 4px 12px rgba(239,68,68,.3)}.btn-confirm:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(239,68,68,.4)}body[data-theme=dark] .modal-content{background:#0f172a}body[data-theme=dark] .modal-header h3{color:#f1f5f9}body[data-theme=dark] .modal-body p{color:#94a3b8}body[data-theme=dark] .btn-cancel{background:#0b1120;color:#f1f5f9;border-color:#1e293b}
-    </style>
+<style>
+/* ====== Base ====== */
+* { margin: 0; padding: 0; box-sizing: border-box; }
 
-    <script>
-    let confirmCallback=null;function showConfirm(message,onConfirm){document.getElementById('confirmMessage').textContent=message;document.getElementById('confirmModal').classList.add('show');confirmCallback=onConfirm}function closeConfirmModal(){document.getElementById('confirmModal').classList.remove('show');confirmCallback=null}document.getElementById('confirmButton').addEventListener('click',()=>{if(confirmCallback){confirmCallback()}closeConfirmModal()});document.querySelector('.modal-overlay').addEventListener('click',closeConfirmModal);
-    </script>
+body.admin-dashboard {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--admin-bg, #f5f5f5);
+    color: var(--admin-text, #1f2937);
+    min-height: 100vh;
+}
+
+/* ====== Nav ====== */
+.admin-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--admin-dark, #fff);
+    border-bottom: 1px solid var(--admin-border, rgba(99,102,241,0.15));
+    padding: 12px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    backdrop-filter: blur(12px);
+}
+.nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.nav-brand i { -webkit-text-fill-color: var(--admin-primary); }
+.nav-actions { display: flex; gap: 8px; }
+.nav-actions a, .nav-actions button { padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--admin-border); background: var(--admin-bg-light); color: var(--admin-text); cursor: pointer; text-decoration: none; transition: all 0.2s; }
+.nav-actions a:hover, .nav-actions button:hover { background: var(--admin-primary); color: #fff; border-color: var(--admin-primary); }
+.btn-logout { color: var(--admin-danger) !important; border-color: rgba(239,68,68,0.3) !important; background: rgba(239,68,68,0.08) !important; }
+.btn-logout:hover { background: var(--admin-danger) !important; color: #fff !important; }
+
+/* ====== Container ====== */
+.admin-container { max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+
+/* ====== Page Header ====== */
+.page-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.75rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+.page-header h1 i { color: var(--admin-primary); }
+.page-header p { color: var(--admin-text-secondary); font-size: 0.95rem; margin-top: 4px; }
+.btn-create { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; border-radius: 12px; background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)); color: #fff; font-weight: 700; font-size: 0.95rem; text-decoration: none; transition: all 0.2s; border: none; cursor: pointer; box-shadow: 0 4px 15px rgba(99,102,241,0.3); }
+.btn-create:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(99,102,241,0.4); }
+
+/* ====== Count Chips ====== */
+.events-count { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.count-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; background: var(--admin-dark, #fff); border: 1px solid var(--admin-border); color: var(--admin-text-secondary); }
+.count-chip i { font-size: 0.75rem; }
+.count-upcoming { color: #059669; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.08); }
+.count-completed { color: #6b7280; border-color: rgba(107,114,128,0.3); background: rgba(107,114,128,0.08); }
+
+/* ====== Grid ====== */
+.events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+
+/* ====== Card ====== */
+.ecard {
+    background: var(--admin-dark, #fff);
+    border: 1px solid var(--admin-border, rgba(99,102,241,0.12));
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: transform 0.25s cubic-bezier(0.4,0,0.2,1), box-shadow 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.ecard:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(99,102,241,0.15); }
+.ecard--hidden { opacity: 0.7; }
+.ecard--hidden:hover { opacity: 1; }
+
+/* Image */
+.ecard__img { position: relative; height: 180px; overflow: hidden; background: linear-gradient(135deg, #6366f1, #a855f7); }
+.ecard__img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.ecard:hover .ecard__img img { transform: scale(1.05); }
+.ecard__img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.5); font-size: 3.5rem; }
+
+/* Badges */
+.ecard__badges { position: absolute; top: 10px; left: 10px; right: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+.ebadge { padding: 4px 10px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; backdrop-filter: blur(8px); display: inline-flex; align-items: center; gap: 4px; }
+.ebadge--upcoming { background: rgba(16,185,129,0.85); color: #fff; }
+.ebadge--ongoing { background: rgba(59,130,246,0.85); color: #fff; }
+.ebadge--completed { background: rgba(100,116,139,0.85); color: #fff; }
+.ebadge--hidden { background: rgba(245,158,11,0.9); color: #fff; }
+.ebadge--reg { background: rgba(99,102,241,0.85); color: #fff; font-size: 0.65rem; }
+
+/* Body */
+.ecard__body { padding: 16px 18px; flex: 1; display: flex; flex-direction: column; }
+.ecard__title { font-size: 1.1rem; font-weight: 700; line-height: 1.3; margin-bottom: 10px; color: var(--admin-text); }
+.ecard__chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.echip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: var(--admin-bg-light, #f1f5f9); color: var(--admin-text-secondary); border: 1px solid var(--admin-border, rgba(99,102,241,0.1)); }
+.echip i { font-size: 0.65rem; color: var(--admin-primary); }
+.ecard__desc { font-size: 0.85rem; line-height: 1.5; color: var(--admin-text-secondary); flex: 1; }
+
+/* Actions */
+.ecard__actions { display: flex; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--admin-border, rgba(99,102,241,0.1)); background: var(--admin-bg-light, #f8fafc); }
+.eact-form { display: contents; }
+.eact { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 6px; border-radius: 8px; font-weight: 600; font-size: 0.78rem; border: none; cursor: pointer; text-decoration: none; transition: all 0.2s; color: #fff; }
+.eact span { white-space: nowrap; }
+
+.eact--vis { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.eact--vis:hover { box-shadow: 0 4px 12px rgba(139,92,246,0.35); }
+.eact--show { background: linear-gradient(135deg, #10b981, #059669); }
+.eact--show:hover { box-shadow: 0 4px 12px rgba(16,185,129,0.35); }
+.eact--regs { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.eact--regs:hover { box-shadow: 0 4px 12px rgba(6,182,212,0.35); }
+.eact--edit { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.eact--edit:hover { box-shadow: 0 4px 12px rgba(59,130,246,0.35); }
+.eact--del { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.eact--del:hover { box-shadow: 0 4px 12px rgba(239,68,68,0.35); }
+
+/* ====== Empty State ====== */
+.empty-state { grid-column: 1 / -1; text-align: center; padding: 4rem 2rem; background: var(--admin-dark, #fff); border-radius: 20px; border: 2px dashed var(--admin-border); }
+.empty-icon { width: 80px; height: 80px; margin: 0 auto 1.5rem; border-radius: 20px; background: linear-gradient(135deg, var(--admin-primary), var(--admin-secondary)); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: #fff; }
+.empty-state h3 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+.empty-state p { color: var(--admin-text-secondary); margin-bottom: 1.5rem; }
+
+/* ====== Dark Mode ====== */
+body[data-theme=dark] .ecard { background: #0f172a; border-color: #1e293b; }
+body[data-theme=dark] .ecard:hover { box-shadow: 0 16px 40px rgba(99,102,241,0.25); }
+body[data-theme=dark] .ecard__title { color: #f1f5f9; }
+body[data-theme=dark] .ecard__desc { color: #94a3b8; }
+body[data-theme=dark] .ecard__actions { background: #0b1120; border-color: #1e293b; }
+body[data-theme=dark] .echip { background: #1e293b; border-color: #334155; color: #94a3b8; }
+body[data-theme=dark] .count-chip { background: #0f172a; border-color: #1e293b; }
+body[data-theme=dark] .empty-state { background: #0f172a; border-color: #1e293b; }
+
+/* ====== Responsive ====== */
+@media (max-width: 768px) {
+    .admin-nav { padding: 10px 14px; }
+    .nav-brand-text { display: none; }
+    .hide-mobile { display: none; }
+    .nav-actions a, .nav-actions button { padding: 8px 10px; font-size: 0.8rem; }
     
-    <script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
+    .admin-container { padding: 16px 12px; }
+    
+    .page-header { flex-direction: column; align-items: stretch; gap: 12px; }
+    .page-header h1 { font-size: 1.35rem; }
+    .btn-create { width: 100%; justify-content: center; padding: 10px 20px; }
+    
+    .events-count { gap: 6px; }
+    .count-chip { font-size: 0.72rem; padding: 4px 10px; }
+    
+    .events-grid { grid-template-columns: 1fr; gap: 14px; }
+    
+    .ecard__img { height: 150px; }
+    .ecard__body { padding: 12px 14px; }
+    .ecard__title { font-size: 1rem; }
+    .ecard__chips { gap: 4px; }
+    .echip { font-size: 0.7rem; padding: 2px 8px; }
+    .ecard__desc { font-size: 0.8rem; }
+    
+    .ecard__actions { padding: 8px 10px; gap: 4px; }
+    .eact { padding: 7px 4px; font-size: 0.72rem; border-radius: 6px; }
+    .eact span { display: none; } /* icon-only on mobile */
+    .eact i { font-size: 0.85rem; }
+}
+
+@media (min-width: 769px) and (max-width: 1100px) {
+    .events-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1101px) {
+    .events-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
+}
+
+@media (max-width: 380px) {
+    .ecard__img { height: 130px; }
+    .page-header h1 { font-size: 1.15rem; }
+    .nav-actions { gap: 4px; }
+    .nav-actions a, .nav-actions button { padding: 6px 8px; }
+}
+
+/* ====== Modal ====== */
+.custom-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:10000}.custom-modal.show{display:flex;align-items:center;justify-content:center}.modal-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px)}.modal-content{position:relative;background:var(--admin-dark,#fff);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-width:420px;width:90%;animation:slideUp .3s ease;border:1px solid var(--admin-border)}@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}.modal-header{padding:1.25rem;border-bottom:1px solid var(--admin-border);display:flex;align-items:center;gap:.75rem}.modal-header i{color:#f59e0b;font-size:1.3rem}.modal-header h3{margin:0;font-size:1.15rem;font-weight:700}.modal-body{padding:1.25rem}.modal-body p{margin:0;color:var(--admin-text-secondary);line-height:1.6}.modal-footer{padding:1.25rem;border-top:1px solid var(--admin-border);display:flex;gap:.75rem;justify-content:flex-end}.modal-btn{padding:.65rem 1.25rem;border-radius:10px;font-weight:600;border:none;cursor:pointer;transition:all .2s;font-size:.9rem}.btn-cancel{background:var(--admin-bg-light);color:var(--admin-text);border:1px solid var(--admin-border)}.btn-cancel:hover{background:var(--admin-border)}.btn-confirm{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 4px 12px rgba(239,68,68,.3)}.btn-confirm:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(239,68,68,.4)}
+body[data-theme=dark] .modal-content{background:#0f172a;border-color:#1e293b}body[data-theme=dark] .modal-header h3{color:#f1f5f9}body[data-theme=dark] .modal-body p{color:#94a3b8}body[data-theme=dark] .btn-cancel{background:#0b1120;color:#f1f5f9;border-color:#1e293b}
+
+/* ====== Toast ====== */
+.admin-toast { position: fixed; top: 20px; right: 20px; padding: 12px 18px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; z-index: 99999; transform: translateX(120%); transition: transform 0.3s ease; box-shadow: 0 8px 30px rgba(0,0,0,0.2); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 40px); }
+.admin-toast.show { transform: translateX(0); }
+.admin-toast-success { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+.admin-toast-error { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+
+/* ====== Alert ====== */
+.alert { padding: 12px 16px; border-radius: 10px; margin-bottom: 1rem; display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 500; animation: slideUp 0.3s ease; }
+.alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #059669; }
+.alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #dc2626; }
+</style>
+
+<script>
+// Modal
+let confirmCallback=null;
+function showConfirm(msg,fn){document.getElementById('confirmMessage').textContent=msg;document.getElementById('confirmModal').classList.add('show');confirmCallback=fn}
+function closeConfirmModal(){document.getElementById('confirmModal').classList.remove('show');confirmCallback=null}
+document.getElementById('confirmButton').addEventListener('click',()=>{if(confirmCallback)confirmCallback();closeConfirmModal()});
+document.querySelector('.modal-overlay').addEventListener('click',closeConfirmModal);
+
+// Visibility toggle
+function toggleVisibility(id){
+    const btn=document.getElementById('vis-btn-'+id);
+    btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';
+    fetch('/admin/events/'+id+'/toggle-visibility',{method:'POST',headers:{'Content-Type':'application/json'}})
+    .then(r=>r.json()).then(d=>{
+        if(d.success){
+            const card=btn.closest('.ecard');
+            if(d.show_in_events){
+                btn.innerHTML='<i class="fas fa-eye-slash"></i><span>Hide</span>';
+                btn.classList.remove('eact--show');
+                card.classList.remove('ecard--hidden');
+                const hb=card.querySelector('.ebadge--hidden');if(hb)hb.remove();
+            }else{
+                btn.innerHTML='<i class="fas fa-eye"></i><span>Show</span>';
+                btn.classList.add('eact--show');
+                card.classList.add('ecard--hidden');
+                const badges=card.querySelector('.ecard__badges');
+                if(!card.querySelector('.ebadge--hidden')){
+                    const b=document.createElement('span');b.className='ebadge ebadge--hidden';
+                    b.innerHTML='<i class="fas fa-eye-slash"></i> Hidden';badges.appendChild(b);
+                }
+            }
+            showToast(d.message,'success');
+        }else{showToast(d.message||'Failed','error')}
+    }).catch(()=>showToast('Network error','error')).finally(()=>{btn.disabled=false});
+}
+
+// Toast
+function showToast(msg,type){
+    const old=document.querySelector('.admin-toast');if(old)old.remove();
+    const t=document.createElement('div');t.className='admin-toast admin-toast-'+type;
+    t.innerHTML='<i class="fas fa-'+(type==='success'?'check-circle':'exclamation-circle')+'"></i> '+msg;
+    document.body.appendChild(t);setTimeout(()=>t.classList.add('show'),10);
+    setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},3000);
+}
+
+// Auto-hide alerts
+setTimeout(()=>{document.querySelectorAll('.alert').forEach(a=>{a.style.opacity='0';setTimeout(()=>a.remove(),300)})},5000);
+</script>
+
+<script src="{{ url_for('static', filename='js/admin-theme.js') }}"></script>
 </body>
 </html>
