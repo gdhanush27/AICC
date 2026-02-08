@@ -4,3 +4,4 @@ openpyxl
 qrcode
 Pillow
 flask-mail
+flask-cors

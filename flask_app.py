@@ -1,4 +1,5 @@
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for, flash
+from flask_cors import CORS
 from functools import wraps
 from datetime import datetime, timezone, timedelta
 from werkzeug.utils import secure_filename
@@ -263,6 +264,9 @@ app = Flask(__name__,
             static_folder=os.path.join(PROJECT_ROOT, 'static'))
 # SECURITY: Use environment variable for secret key in production
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-secret-key-change-this-in-production')
+
+# CORS: Allow all origins on all endpoints
+CORS(app)
 app.config['UPLOAD_FOLDER'] = os.path.join(PROJECT_ROOT, 'static/uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching in development
@@ -567,8 +571,11 @@ def home():
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
     
+    # Filter out hidden events
+    visible_events = [e for e in EVENTS if e.get('show_in_events', True)]
+    
     # Sort events: with register_link first, then by status (upcoming first)
-    sorted_events = sorted(EVENTS, key=lambda x: (
+    sorted_events = sorted(visible_events, key=lambda x: (
         not bool(x.get('register_link')),  # Events with register_link first
         x.get('status') != 'upcoming',     # Then upcoming events
         x.get('status') == 'completed'     # Then completed
@@ -578,7 +585,7 @@ def home():
     next_deadline_event = None
     valid_deadline_events = []
     
-    for event in EVENTS:
+    for event in visible_events:
         # Only consider upcoming events with registration deadlines
         if event.get('status') == 'upcoming':
             if event.get('registration_deadline') and event.get('register_link'):
@@ -624,8 +631,9 @@ def events():
     """Events page showing all events"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
-    # Sort events: with register_link first, then by status (upcoming first)
-    sorted_events = sorted(EVENTS, key=lambda x: (
+    # Filter out hidden events, then sort
+    visible_events = [e for e in EVENTS if e.get('show_in_events', True)]
+    sorted_events = sorted(visible_events, key=lambda x: (
         not bool(x.get('register_link')),  # Events with register_link first
         x.get('status') != 'upcoming',     # Then upcoming events
         x.get('status') == 'completed'     # Then completed
@@ -1547,12 +1555,120 @@ def api_events():
     CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
     return jsonify(EVENTS)
 
+
 @app.route('/api/members')
 def api_members():
     """API endpoint to get members data"""
     global CLUB_INFO, EVENTS, MEMBERS, GALLERY
     CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
     return jsonify(MEMBERS)
+
+@app.route('/api/data')
+def api_data():
+    """Bulk API endpoint: returns ALL public data in a single response.
+    Used by the React frontend to minimize API calls (CPU-saving for PythonAnywhere free tier).
+    """
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    # Strip sensitive fields from club info
+    sensitive_keys = {'api_config', 'email_config', 'admin_password'}
+    safe_club_info = {k: v for k, v in CLUB_INFO.items() if k not in sensitive_keys}
+    
+    # Load form templates (active only)
+    templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
+    form_templates = []
+    if os.path.exists(templates_file):
+        try:
+            with open(templates_file, 'r') as f:
+                all_templates = json.load(f)
+            form_templates = [t for t in all_templates if t.get('active')]
+        except Exception:
+            form_templates = []
+    
+    return jsonify({
+        'club': safe_club_info,
+        'events': EVENTS,
+        'members': MEMBERS,
+        'gallery': GALLERY,
+        'form_templates': form_templates
+    })
+
+@app.route('/api/attendance/check', methods=['POST'])
+def api_attendance_check():
+    """JSON-only attendance check API for the React frontend."""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip().lower()
+    reg_id = data.get('registration_id', '').strip()
+    event_id = data.get('event_id')
+    
+    if not email or not reg_id or not event_id:
+        return jsonify({'error': 'Please provide email, registration_id, and event_id.'}), 400
+    
+    try:
+        event_id = int(event_id)
+        event = next((e for e in EVENTS if e.get('id') == event_id), None)
+        
+        if not event:
+            return jsonify({'error': 'Event not found.'}), 404
+        
+        # Load registrations for this event
+        registrations = []
+        if event.get('registration_file'):
+            reg_file_path = os.path.join(PROJECT_ROOT, event['registration_file'])
+            if os.path.exists(reg_file_path):
+                with open(reg_file_path, 'r') as f:
+                    registrations = json.load(f)
+        else:
+            event_slug = slugify(event.get('name', ''))
+            reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', f'{event_slug}_registrations.json')
+            if os.path.exists(reg_file_path):
+                with open(reg_file_path, 'r') as f:
+                    registrations = json.load(f)
+        
+        # Find the registration
+        registration = None
+        for reg in registrations:
+            if reg.get('registration_id') == reg_id and reg.get('submitter_email', '').lower() == email:
+                registration = reg
+                break
+        
+        if not registration:
+            return jsonify({'error': 'Registration not found. Please check your email and registration ID.'}), 404
+        
+        # Build participant name
+        name = registration.get('name', registration.get('submitter_email', 'Participant'))
+        if registration.get('participants') and len(registration['participants']) > 0:
+            name = registration['participants'][0].get('name', name)
+        
+        return jsonify({
+            'success': True,
+            'event': {
+                'id': event.get('id'),
+                'name': event.get('name'),
+                'date': event.get('date'),
+            },
+            'registration': {
+                'registration_id': registration.get('registration_id'),
+                'submitter_email': registration.get('submitter_email'),
+                'participants': registration.get('participants', []),
+                'timestamp': registration.get('timestamp'),
+                'custom_field_values': registration.get('custom_field_values', {}),
+                'num_participants': registration.get('num_participants', 1),
+                'participant_attendance': registration.get('participant_attendance', []),
+            },
+            'name': name,
+            'attendance_status': registration.get('attendance_status', 'not_entered'),
+            'entry_time': registration.get('entry_time'),
+            'attendance_comment': registration.get('attendance_comment', ''),
+            'marked_by': registration.get('marked_by', ''),
+        })
+        
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid event ID.'}), 400
 
 # ========================================
 # Attendance Check Routes (Public)
@@ -1672,7 +1788,604 @@ def attendance_check():
                          shareable_qr_code=shareable_qr_code)
 
 # ========================================
-# Admin Routes
+# Admin API Routes (Token-based auth for React frontend)
+# ========================================
+
+import secrets
+
+# In-memory admin tokens (simple approach - token -> expiry timestamp)
+_admin_tokens = {}
+
+def _cleanup_tokens():
+    """Remove expired tokens"""
+    now = time.time()
+    expired = [t for t, exp in _admin_tokens.items() if exp < now]
+    for t in expired:
+        del _admin_tokens[t]
+
+def _generate_admin_token():
+    """Generate a secure admin token valid for 24 hours"""
+    _cleanup_tokens()
+    token = secrets.token_urlsafe(32)
+    _admin_tokens[token] = time.time() + 86400  # 24h
+    return token
+
+def _verify_admin_token(token):
+    """Verify an admin token is valid"""
+    _cleanup_tokens()
+    return token in _admin_tokens
+
+def api_admin_required(f):
+    """Decorator for API routes requiring admin token"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.headers.get('Authorization', '')
+        token = auth.replace('Bearer ', '') if auth.startswith('Bearer ') else ''
+        if not token or not _verify_admin_token(token):
+            return jsonify({'error': 'Unauthorized'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/api/admin/login', methods=['POST'])
+def api_admin_login():
+    """Admin login - returns token"""
+    data = request.get_json(silent=True) or {}
+    username = data.get('username', '')
+    password = data.get('password', '')
+    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        token = _generate_admin_token()
+        return jsonify({'success': True, 'token': token})
+    return jsonify({'error': 'Invalid credentials'}), 401
+
+@app.route('/api/admin/verify', methods=['GET'])
+def api_admin_verify():
+    """Verify admin token is still valid"""
+    auth = request.headers.get('Authorization', '')
+    token = auth.replace('Bearer ', '') if auth.startswith('Bearer ') else ''
+    if token and _verify_admin_token(token):
+        return jsonify({'valid': True})
+    return jsonify({'valid': False}), 401
+
+@app.route('/api/admin/dashboard', methods=['GET'])
+@api_admin_required
+def api_admin_dashboard():
+    """Get dashboard stats"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({
+        'events_count': len(EVENTS),
+        'members_count': len(MEMBERS),
+        'gallery_count': len(GALLERY),
+    })
+
+@app.route('/api/admin/club-info', methods=['GET', 'PUT'])
+@api_admin_required
+def api_admin_club_info():
+    """Get or update club information"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    if request.method == 'GET':
+        return jsonify(CLUB_INFO)
+    
+    # PUT - update
+    data = request.get_json(silent=True) or {}
+    # Merge with existing, preserving keys not in request
+    for key in data:
+        CLUB_INFO[key] = data[key]
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/club_info.json'), 'w') as f:
+        json.dump(CLUB_INFO, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/events', methods=['GET'])
+@api_admin_required
+def api_admin_events():
+    """Get all events for admin"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify(EVENTS)
+
+@app.route('/api/admin/events', methods=['POST'])
+@api_admin_required
+def api_admin_create_event():
+    """Create a new event via API"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    data = request.get_json(silent=True) or {}
+    
+    events, next_id = load_events_file()
+    
+    new_event = {
+        'id': next_id,
+        'name': data.get('name', ''),
+        'date': data.get('date', ''),
+        'time': data.get('time', ''),
+        'location': data.get('location', ''),
+        'description': data.get('description', ''),
+        'how': data.get('how', ''),
+        'status': data.get('status', 'upcoming'),
+        'image': data.get('image', ''),
+        'rules': data.get('rules', []),
+        'coordinators': data.get('coordinators', []),
+        'registration_type': data.get('registration_type', 'none'),
+        'register_link': data.get('register_link', '#'),
+        'template_id': data.get('template_id'),
+        'show_in_events': data.get('show_in_events', True),
+    }
+    
+    # Handle registration deadline
+    if data.get('registration_deadline'):
+        new_event['registration_deadline'] = data['registration_deadline']
+    
+    # Create registration file for internal registration
+    if new_event['registration_type'] == 'internal' and new_event.get('template_id'):
+        event_slug = re.sub(r'[^a-z0-9]+', '_', new_event['name'].lower()).strip('_')
+        reg_filename = f"{event_slug}_{new_event['id']}_registrations.json"
+        reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', reg_filename)
+        os.makedirs(os.path.dirname(reg_file_path), exist_ok=True)
+        if not os.path.exists(reg_file_path):
+            with open(reg_file_path, 'w') as f:
+                json.dump([], f)
+        new_event['registration_file'] = f'data/registrations/{reg_filename}'
+    
+    events.append(new_event)
+    save_events_file(events, next_id + 1)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True, 'event': new_event})
+
+@app.route('/api/admin/events/<int:event_id>', methods=['PUT'])
+@api_admin_required
+def api_admin_update_event(event_id):
+    """Update an event via API"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    data = request.get_json(silent=True) or {}
+    
+    events, next_id = load_events_file()
+    event = next((e for e in events if e.get('id') == event_id), None)
+    if not event:
+        return jsonify({'error': 'Event not found'}), 404
+    
+    # Update fields that are provided
+    for key in ['name', 'date', 'time', 'location', 'description', 'how', 'status',
+                'image', 'rules', 'coordinators', 'registration_type', 'register_link',
+                'template_id', 'registration_deadline', 'allow_registration', 'show_in_events']:
+        if key in data:
+            event[key] = data[key]
+    
+    # Create registration file if switching to internal
+    if event.get('registration_type') == 'internal' and event.get('template_id') and not event.get('registration_file'):
+        event_slug = re.sub(r'[^a-z0-9]+', '_', event['name'].lower()).strip('_')
+        reg_filename = f"{event_slug}_{event['id']}_registrations.json"
+        reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', reg_filename)
+        os.makedirs(os.path.dirname(reg_file_path), exist_ok=True)
+        if not os.path.exists(reg_file_path):
+            with open(reg_file_path, 'w') as f:
+                json.dump([], f)
+        event['registration_file'] = f'data/registrations/{reg_filename}'
+    
+    save_events_file(events, next_id)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True, 'event': event})
+
+@app.route('/api/admin/events/<int:event_id>', methods=['DELETE'])
+@api_admin_required
+def api_admin_delete_event(event_id):
+    """Archive an event (mark as completed)"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    events, next_id = load_events_file()
+    event = next((e for e in events if e.get('id') == event_id), None)
+    if event:
+        event['status'] = 'completed'
+        event['registration_type'] = 'none'
+        event['allow_registration'] = False
+    save_events_file(events, next_id)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/events/<int:event_id>/registrations', methods=['GET'])
+@api_admin_required
+def api_admin_event_registrations(event_id):
+    """Get registrations for an event"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    event = next((e for e in EVENTS if e.get('id') == event_id), None)
+    if not event:
+        return jsonify({'error': 'Event not found'}), 404
+    
+    registrations = []
+    if event.get('registration_file'):
+        reg_file = os.path.join(PROJECT_ROOT, event['registration_file'])
+        if os.path.exists(reg_file):
+            with open(reg_file, 'r') as f:
+                registrations = json.load(f)
+    
+    # Load form template
+    template = None
+    if event.get('template_id'):
+        templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
+        try:
+            with open(templates_file, 'r') as f:
+                templates = json.load(f)
+            template = next((t for t in templates if t.get('id') == event.get('template_id')), None)
+        except:
+            pass
+    
+    return jsonify({
+        'event': event,
+        'registrations': registrations,
+        'form_template': template,
+    })
+
+@app.route('/api/admin/events/<int:event_id>/toggle-registration', methods=['POST'])
+@api_admin_required
+def api_admin_toggle_registration(event_id):
+    """Toggle registration for an event"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    events, next_id = load_events_file()
+    event = next((e for e in events if e.get('id') == event_id), None)
+    if not event:
+        return jsonify({'error': 'Event not found'}), 404
+    event['allow_registration'] = not event.get('allow_registration', True)
+    save_events_file(events, next_id)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True, 'allow_registration': event['allow_registration']})
+
+@app.route('/api/admin/members', methods=['GET'])
+@api_admin_required
+def api_admin_members():
+    """Get all members"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'members': MEMBERS, 'club_info': {
+        'member_roles': CLUB_INFO.get('member_roles', []),
+        'member_years': CLUB_INFO.get('member_years', []),
+    }})
+
+@app.route('/api/admin/members', methods=['POST'])
+@api_admin_required
+def api_admin_create_member():
+    """Add a new member"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    data = request.get_json(silent=True) or {}
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'r') as f:
+        members = json.load(f)
+    
+    members.append({
+        'name': data.get('name', ''),
+        'role': data.get('role', ''),
+        'year': data.get('year', ''),
+        'domain': data.get('domain', ''),
+        'image': data.get('image', '/static/img/members/default.webp'),
+        'linkedin': data.get('linkedin', ''),
+        'github': data.get('github', ''),
+    })
+    
+    role_hierarchy = CLUB_INFO.get('member_roles', [])
+    year_hierarchy = CLUB_INFO.get('member_years', [])
+    if role_hierarchy:
+        members = sort_members_by_role(members, role_hierarchy, year_hierarchy)
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'w') as f:
+        json.dump(members, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/members/<int:idx>', methods=['PUT'])
+@api_admin_required
+def api_admin_update_member(idx):
+    """Update a member"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    data = request.get_json(silent=True) or {}
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'r') as f:
+        members = json.load(f)
+    if idx >= len(members):
+        return jsonify({'error': 'Member not found'}), 404
+    
+    for key in ['name', 'role', 'year', 'domain', 'image', 'linkedin', 'github']:
+        if key in data:
+            members[idx][key] = data[key]
+    
+    role_hierarchy = CLUB_INFO.get('member_roles', [])
+    year_hierarchy = CLUB_INFO.get('member_years', [])
+    if role_hierarchy:
+        members = sort_members_by_role(members, role_hierarchy, year_hierarchy)
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'w') as f:
+        json.dump(members, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/members/<int:idx>', methods=['DELETE'])
+@api_admin_required
+def api_admin_delete_member(idx):
+    """Delete a member"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'r') as f:
+        members = json.load(f)
+    if idx < len(members):
+        member = members[idx]
+        delete_old_image(member.get('image', ''))
+        members.pop(idx)
+        with open(os.path.join(PROJECT_ROOT, 'data/members.json'), 'w') as f:
+            json.dump(members, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/gallery', methods=['GET'])
+@api_admin_required
+def api_admin_gallery():
+    """Get all gallery images"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify(GALLERY)
+
+@app.route('/api/admin/gallery', methods=['POST'])
+@api_admin_required
+def api_admin_create_gallery():
+    """Add a gallery image"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    data = request.get_json(silent=True) or {}
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'r') as f:
+        gallery = json.load(f)
+    
+    gallery.append({
+        'url': data.get('url', ''),
+        'image': data.get('image', data.get('url', '')),
+        'title': data.get('title', ''),
+        'category': data.get('category', 'events'),
+        'description': data.get('description', ''),
+    })
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'w') as f:
+        json.dump(gallery, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/gallery/<int:idx>', methods=['PUT'])
+@api_admin_required
+def api_admin_update_gallery(idx):
+    """Update a gallery image"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    data = request.get_json(silent=True) or {}
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'r') as f:
+        gallery = json.load(f)
+    if idx >= len(gallery):
+        return jsonify({'error': 'Image not found'}), 404
+    
+    for key in ['title', 'category', 'description', 'url', 'image']:
+        if key in data:
+            gallery[idx][key] = data[key]
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'w') as f:
+        json.dump(gallery, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/gallery/<int:idx>', methods=['DELETE'])
+@api_admin_required
+def api_admin_delete_gallery(idx):
+    """Delete a gallery image"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'r') as f:
+        gallery = json.load(f)
+    if idx < len(gallery):
+        image = gallery[idx]
+        delete_old_image(image.get('url') or image.get('image', ''))
+        gallery.pop(idx)
+        with open(os.path.join(PROJECT_ROOT, 'data/gallery.json'), 'w') as f:
+            json.dump(gallery, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/contact', methods=['GET', 'PUT'])
+@api_admin_required
+def api_admin_contact():
+    """Get or update contact information"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    if request.method == 'GET':
+        return jsonify({
+            'email': CLUB_INFO.get('email', ''),
+            'linkedin': CLUB_INFO.get('linkedin', ''),
+            'instagram': CLUB_INFO.get('instagram', ''),
+            'faculty_coordinators': CLUB_INFO.get('faculty_coordinators', []),
+            'secretaries': CLUB_INFO.get('secretaries', []),
+        })
+    
+    data = request.get_json(silent=True) or {}
+    for key in ['email', 'linkedin', 'instagram', 'faculty_coordinators', 'secretaries']:
+        if key in data:
+            CLUB_INFO[key] = data[key]
+    
+    with open(os.path.join(PROJECT_ROOT, 'data/club_info.json'), 'w') as f:
+        json.dump(CLUB_INFO, f, indent=4)
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/form-templates', methods=['GET'])
+@api_admin_required
+def api_admin_form_templates():
+    """Get all form templates"""
+    templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
+    templates = []
+    if os.path.exists(templates_file):
+        with open(templates_file, 'r') as f:
+            templates = json.load(f)
+    return jsonify(templates)
+
+@app.route('/api/admin/form-templates', methods=['POST'])
+@api_admin_required
+def api_admin_create_form_template():
+    """Create a form template"""
+    data = request.get_json(silent=True) or {}
+    templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
+    templates = []
+    if os.path.exists(templates_file):
+        with open(templates_file, 'r') as f:
+            templates = json.load(f)
+    
+    max_id = max([t.get('id', 0) for t in templates], default=0)
+    data['id'] = max_id + 1
+    templates.append(data)
+    
+    with open(templates_file, 'w') as f:
+        json.dump(templates, f, indent=4)
+    return jsonify({'success': True, 'id': data['id']})
+
+@app.route('/api/admin/form-templates/<int:form_id>', methods=['PUT'])
+@api_admin_required
+def api_admin_update_form_template(form_id):
+    """Update a form template"""
+    data = request.get_json(silent=True) or {}
+    templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
+    
+    with open(templates_file, 'r') as f:
+        templates = json.load(f)
+    
+    template = next((t for t in templates if t.get('id') == form_id), None)
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    for key in data:
+        if key != 'id':
+            template[key] = data[key]
+    
+    with open(templates_file, 'w') as f:
+        json.dump(templates, f, indent=4)
+    return jsonify({'success': True})
+
+@app.route('/api/admin/form-templates/<int:form_id>', methods=['DELETE'])
+@api_admin_required
+def api_admin_delete_form_template(form_id):
+    """Delete a form template"""
+    templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
+    
+    with open(templates_file, 'r') as f:
+        templates = json.load(f)
+    
+    templates = [t for t in templates if t.get('id') != form_id]
+    
+    with open(templates_file, 'w') as f:
+        json.dump(templates, f, indent=4)
+    return jsonify({'success': True})
+
+@app.route('/api/admin/form-templates/<int:form_id>/toggle', methods=['POST'])
+@api_admin_required
+def api_admin_toggle_form_template(form_id):
+    """Toggle form template active status"""
+    templates_file = os.path.join(PROJECT_ROOT, 'data', 'form_templates.json')
+    
+    with open(templates_file, 'r') as f:
+        templates = json.load(f)
+    
+    template = next((t for t in templates if t.get('id') == form_id), None)
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    template['active'] = not template.get('active', True)
+    
+    with open(templates_file, 'w') as f:
+        json.dump(templates, f, indent=4)
+    return jsonify({'success': True, 'active': template['active']})
+
+@app.route('/api/admin/mark-entry', methods=['POST'])
+@api_admin_required
+def api_admin_mark_entry():
+    """Mark attendee entry via API"""
+    data = request.get_json(silent=True) or {}
+    regid = data.get('regid')
+    email = data.get('email')
+    event_id = data.get('event_id')
+    attendance_type = data.get('attendance_type', 'full')
+    attendance_comment = data.get('attendance_comment', '')
+    participant_attendance = data.get('participant_attendance')
+    
+    if not regid or not email or not event_id:
+        return jsonify({'error': 'Missing parameters'}), 400
+    
+    try:
+        event_id = int(event_id)
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid event ID'}), 400
+    
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    event = next((e for e in EVENTS if e.get('id') == event_id), None)
+    if not event:
+        return jsonify({'error': 'Event not found'}), 404
+    
+    reg_file_path = None
+    if event.get('registration_file'):
+        reg_file_path = os.path.join(PROJECT_ROOT, event['registration_file'])
+    else:
+        event_slug = slugify(event.get('name', ''))
+        reg_file_path = os.path.join(PROJECT_ROOT, 'data', 'registrations', f'{event_slug}_registrations.json')
+    
+    registrations = safe_json_read(reg_file_path)
+    
+    updated = False
+    for reg in registrations:
+        if reg.get('registration_id') == regid and reg.get('submitter_email', '').lower() == email.lower():
+            if attendance_type == 'participants' and participant_attendance:
+                reg['participant_attendance'] = participant_attendance
+                total = len(participant_attendance)
+                present = sum(1 for p in participant_attendance if p)
+                if present == total:
+                    reg['attendance_status'] = 'entered'
+                elif present > 0:
+                    reg['attendance_status'] = 'partially_present'
+                else:
+                    reg['attendance_status'] = 'not_entered'
+                reg['attendance_comment'] = f'{present}/{total} participants present'
+            else:
+                reg['attendance_status'] = 'partially_present' if attendance_type == 'partial' else 'entered'
+                reg['attendance_comment'] = attendance_comment
+            
+            reg['entry_time'] = datetime.now().isoformat()
+            reg['marked_by'] = 'admin'
+            updated = True
+            break
+    
+    if not updated:
+        return jsonify({'error': 'Registration not found'}), 404
+    
+    try:
+        safe_json_write(reg_file_path, registrations)
+        return jsonify({'success': True})
+    except Exception:
+        return jsonify({'error': 'Failed to save'}), 500
+
+@app.route('/api/admin/upload', methods=['POST'])
+@api_admin_required
+def api_admin_upload():
+    """Handle file uploads via API"""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{filename}"
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        return jsonify({'url': f"/static/uploads/{filename}"})
+    return jsonify({'error': 'Invalid file type'}), 400
+
+# ========================================
+# Admin Routes (Session-based for Jinja templates)
 # ========================================
 
 @app.route('/admin/login', methods=['GET', 'POST'])
@@ -1866,7 +2579,8 @@ def admin_create_event():
             'status': request.form.get('status'),
             'image': image_url,
             'rules': request.form.get('rules', '').split('\n') if request.form.get('rules') else [],
-            'coordinators': []
+            'coordinators': [],
+            'show_in_events': request.form.get('show_in_events') == 'true'
         }
         
         # Handle registration settings
@@ -2114,6 +2828,7 @@ def admin_edit_event(event_id):
         event['status'] = request.form.get('status')
         event['image'] = image_url
         event['rules'] = request.form.get('rules', '').split('\n') if request.form.get('rules') else []
+        event['show_in_events'] = request.form.get('show_in_events') == 'true'
         
         # Handle registration settings
         registration_type = request.form.get('registration_type', 'none')
@@ -2872,6 +3587,36 @@ def admin_toggle_registration(event_id):
         
     except Exception as e:
         logger.error(f"Error toggling registration: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/admin/events/<int:event_id>/toggle-visibility', methods=['POST'])
+@admin_required
+def admin_toggle_visibility(event_id):
+    """Toggle show_in_events for an event (show/hide from public Events page)"""
+    global CLUB_INFO, EVENTS, MEMBERS, GALLERY
+    
+    try:
+        events, next_id = load_events_file()
+        
+        event = next((e for e in events if e.get('id') == event_id), None)
+        if not event:
+            return jsonify({'success': False, 'message': 'Event not found'}), 404
+        
+        current = event.get('show_in_events', True)
+        event['show_in_events'] = not current
+        
+        save_events_file(events, next_id)
+        CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+        
+        new_status = event['show_in_events']
+        return jsonify({
+            'success': True,
+            'show_in_events': new_status,
+            'message': f'Event {"shown" if new_status else "hidden"} on public Events page'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error toggling visibility: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/admin/verify-entry')
