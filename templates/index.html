@@ -8,16 +8,31 @@
     </div>
     <div class="container">
         <div class="hero-content">
-            <div class="typing-animation">
-                <code>console.log("Welcome to AI Coding Club");</code>
+            <div class="hero-badge">
+                <span>{{ club_info.short_name }} — {{ club_info.department }}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </div>
             <h1 class="hero-title">
-                Empowering students to <span class="gradient-text">learn, build, and innovate</span> in AI and coding.
+                Empowering students to
+                <span class="hero-rotating-wrapper">
+                    <span class="hero-rotating-word active" data-index="0">learn</span>
+                    <span class="hero-rotating-word" data-index="1">build</span>
+                    <span class="hero-rotating-word" data-index="2">innovate</span>
+                    <span class="hero-rotating-word" data-index="3">create</span>
+                    <span class="hero-rotating-word" data-index="4">grow</span>
+                </span>
+                <span class="hero-static-text"><span class="gradient-text">learn, build, and innovate</span></span>
+                <br>in AI and coding.
             </h1>
             <p class="hero-subtitle">{{ club_info.tagline }}</p>
             <div class="hero-buttons">
-                <a href="/events" class="btn btn-primary">Explore Events</a>
-                <a href="/about" class="btn btn-secondary">Learn More</a>
+                <a href="/events" class="btn btn-primary">
+                    Explore Events
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </a>
+                <a href="/about" class="btn btn-secondary">
+                    Learn More
+                </a>
             </div>
         </div>
     </div>

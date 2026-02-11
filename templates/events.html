@@ -209,6 +209,18 @@
 .chat-body::-webkit-scrollbar { width: 4px; }
 .chat-body::-webkit-scrollbar-thumb { background: rgba(102, 126, 234, 0.3); border-radius: 2px; }
 
+/* Chat links */
+.chat-link {
+    color: #93c5fd;
+    text-decoration: underline;
+    text-decoration-color: rgba(147, 197, 253, 0.4);
+    transition: color 0.2s;
+}
+.chat-link:hover {
+    color: #bfdbfe;
+    text-decoration-color: rgba(191, 219, 254, 0.7);
+}
+
 @media (max-width: 480px) {
     .chat-window {
         position: fixed;
@@ -318,6 +330,7 @@
     </div>
     <div class="chat-quick">
         <button data-msg="What events are upcoming?">📅 Events</button>
+        <button data-msg="List all event links">🔗 Event Links</button>
         <button data-msg="How do I register?">📝 Register</button>
         <button data-msg="Tell me about AICC">ℹ️ About</button>
     </div>
@@ -354,6 +367,9 @@ const chatBody = document.getElementById('chatBody');
 const chatInput = document.getElementById('chatInput');
 const chatSend = document.getElementById('chatSend');
 
+// Conversation history for context (stores {role, content} objects)
+const chatHistory = [];
+
 function openChat() {
     chatFab.classList.add('hidden');
     chatWindow.classList.add('open');
@@ -389,6 +405,7 @@ async function sendChat(msg) {
     if (!message) return;
     
     addMsg(message, 'user');
+    chatHistory.push({ role: 'user', content: message });
     chatInput.value = '';
     chatSend.disabled = true;
     
@@ -399,14 +416,18 @@ async function sendChat(msg) {
     scrollChat();
     
     try {
+        // Send last 5 messages as history for context
+        const historyToSend = chatHistory.slice(-5);
         const res = await fetch('/api/chatbot', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({ message, history: historyToSend })
         });
         const data = await res.json();
         typing.remove();
-        addMsg(data.reply || 'Sorry, something went wrong.', 'bot');
+        const reply = data.reply || 'Sorry, something went wrong.';
+        addMsg(reply, 'bot');
+        chatHistory.push({ role: 'assistant', content: reply });
     } catch (e) {
         typing.remove();
         addMsg('Connection error. Please try again.', 'bot');
@@ -414,11 +435,26 @@ async function sendChat(msg) {
     chatSend.disabled = false;
 }
 
+function renderChatText(text) {
+    // Escape HTML first
+    let safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Convert [text](/path) links to clickable <a> tags
+    safe = safe.replace(/\[([^\]]+)\]\((\/[^)]+)\)/g, '<a href="$2" class="chat-link" target="_self">$1</a>');
+    // Convert plain /events/N paths to links (if not already inside an <a>)
+    safe = safe.replace(/(?<!href=")(?<!")(\/(events\/\d+(?:\/register)?|events|gallery|members|about|attendance\/check))(?![^<]*<\/a>)/g, '<a href="$1" class="chat-link" target="_self">$1</a>');
+    // Convert newlines to <br>
+    safe = safe.replace(/\n/g, '<br>');
+    return safe;
+}
+
 function addMsg(text, sender) {
     const div = document.createElement('div');
     div.className = 'chat-msg ' + sender;
-    // Convert newlines to <br> for proper display
-    div.innerHTML = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    if (sender === 'bot') {
+        div.innerHTML = renderChatText(text);
+    } else {
+        div.innerHTML = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    }
     chatBody.appendChild(div);
     scrollChat();
 }
