@@ -645,10 +645,11 @@ def events():
 
 @app.route('/api/chatbot', methods=['POST'])
 def chatbot_api():
-    """Chatbot API endpoint using Groq"""
+    """Chatbot API endpoint using Groq with conversation history"""
     try:
         data = request.get_json()
         user_message = data.get('message', '').strip()
+        history = data.get('history', [])  # Last N messages [{role, content}, ...]
         
         if not user_message:
             return jsonify({'error': 'Message is required'}), 400
@@ -667,6 +668,13 @@ def chatbot_api():
         secretary_contacts = "\n".join([
             f"  - {s.get('name')}: {s.get('phone')}" 
             for s in club_info.get('secretaries', [])
+        ])
+        
+        # Build event links context with IDs for linking
+        events_list, _ = load_events_file()
+        events_with_links = "\n".join([
+            f"- {e.get('name')} (ID: {e.get('id')}): {e.get('description', 'No description')} | Date: {e.get('date')} | Status: {e.get('status')} | Location: {e.get('location')} | Link: /events/{e.get('id')} | Register: /events/{e.get('id')}/register"
+            for e in events_list if e.get('show_in_events', True)
         ])
         
         system_prompt = f"""You are a helpful assistant for AI Coding Club (AICC) at Kongu Engineering College. You help users with information about club events, registrations, and general queries.
@@ -690,18 +698,18 @@ Faculty Coordinators:
 Student Secretaries:
 {secretary_contacts}
 
-Current Events:
-{events_context}
+Current Events (with page links):
+{events_with_links}
 
 Website Features for Users:
 - Home Page: Overview of the club, recent updates, and quick links
-- Events Page: Browse all upcoming and past events, filter by status
-- Event Details: Click any event to see full details, schedule, and requirements
-- Registration: Click "Register Now" on upcoming events to sign up (some events may require payment via Razorpay)
-- Attendance Check: After attending an event, check your attendance status at /attendance-check using your email or registration ID
-- Gallery: View photos from past events and activities
-- Members: See our team - coordinators, leads, and members
-- About: Learn more about AICC's mission and activities
+- Events Page (/events): Browse all upcoming and past events, filter by status
+- Event Details (/events/ID): Click any event to see full details, schedule, and requirements
+- Registration (/events/ID/register): Click "Register Now" on upcoming events to sign up
+- Attendance Check (/attendance/check): Check your attendance status using your email or registration ID
+- Gallery (/gallery): View photos from past events and activities
+- Members (/members): See our team - coordinators, leads, and members
+- About (/about): Learn more about AICC's mission and activities
 
 How to Register for Events:
 1. Go to Events page and find the event
@@ -712,12 +720,36 @@ How to Register for Events:
 
 Guidelines:
 - Be friendly and concise
-- If asked about events, provide relevant details from the events list
+- If asked about events, provide relevant details and ALWAYS include the event page link in format [EventName](/events/ID)
+- When listing events, include clickable links like: [Thinkathon](/events/1)
+- If user asks for event links, list all visible events with their links
 - For contact queries, provide the relevant contact details
-- For registration queries, guide users step by step
+- For registration queries, guide users step by step with the registration link
 - If you don't know something specific, say so politely
-- Keep responses brief (2-3 sentences max unless more detail is needed)
-- IMPORTANT: Never use markdown formatting. No tables, no bold (**), no italics (*), no headers (#), no code blocks. Use plain text only with simple line breaks."""
+- Keep responses brief (2-3 sentences max unless listing events or more detail is needed)
+- CRITICAL FORMATTING RULES (markdown is NOT supported in this chat, raw text is displayed as-is):
+  * NEVER use markdown syntax: no **bold**, no *italics*, no # headers, no `code blocks`, no tables, no --- dividers
+  * Do NOT use bullet points with - or * prefixes. Do NOT use numbered lists like "1. item"
+  * Use plain text only with simple line breaks for separation
+  * For emphasis, use CAPS or arrows like -> or >> or enclose in brackets like [IMPORTANT]
+  * For listing items, use numbered format like: 1) Item one then a new line 2) Item two
+  * For links, use ONLY the format [LinkText](/path) - this is the ONLY special syntax supported in this chat
+  * Example of GOOD formatting: "Here are upcoming events:\\n\\n1) [Thinkathon](/events/1) -> Jan 31, 2027, AI BLOCK\\n2) [Workshop](/events/2) -> Jan 29, 2026, AI BLOCK"
+  * Example of BAD formatting (NEVER do this): "**Upcoming Events**\\n- *Thinkathon*: Jan 31" -- the ** and * and - will show as raw characters"""
+        
+        # Build messages list with conversation history (last 5 exchanges)
+        messages = [{'role': 'system', 'content': system_prompt}]
+        
+        # Sanitize and add last 5 conversation messages from history
+        if history and isinstance(history, list):
+            for msg in history[-5:]:
+                role = msg.get('role', '')
+                content = msg.get('content', '').strip()
+                if role in ('user', 'assistant') and content:
+                    messages.append({'role': role, 'content': content[:500]})  # Limit each msg length
+        
+        # Add current user message
+        messages.append({'role': 'user', 'content': user_message})
         
         # Call Groq API
         response = requests.post(
@@ -728,11 +760,8 @@ Guidelines:
             },
             json={
                 'model': get_groq_model(),
-                'messages': [
-                    {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_message}
-                ],
-                'max_tokens': 300,
+                'messages': messages,
+                'max_tokens': 400,
                 'temperature': 0.7
             },
             timeout=30
@@ -1877,6 +1906,10 @@ def api_admin_club_info():
     with open(os.path.join(PROJECT_ROOT, 'data/club_info.json'), 'w') as f:
         json.dump(CLUB_INFO, f, indent=4)
     CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+    
+    # Reconfigure Flask-Mail with new SMTP settings
+    configure_mail()
+    
     return jsonify({'success': True})
 
 @app.route('/api/admin/events', methods=['GET'])
@@ -2520,6 +2553,9 @@ def admin_club_info():
         
         # Reload data
         CLUB_INFO, EVENTS, MEMBERS, GALLERY = load_data()
+        
+        # Reconfigure Flask-Mail with new SMTP settings
+        configure_mail()
         
         flash('Club information updated successfully!', 'success')
         return redirect(url_for('admin_club_info'))

@@ -11,19 +11,16 @@
 </head>
 <body data-theme="light">
     <!-- Navigation -->
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="container">
             <div class="nav-wrapper">
                 <a href="/" class="logo">
                     <img src="{{ club_info.logo }}" alt="AICC Logo" onerror="this.style.display='none'">
-                    <span>{{ club_info.short_name }}</span>
+                    <span class="logo-text">{{ club_info.short_name }}</span>
                 </a>
-                <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </button>
-                <ul class="nav-menu" id="navMenu">
+                
+                <!-- Desktop Navigation -->
+                <ul class="nav-menu nav-desktop" id="navMenuDesktop">
                     <li><a href="/" class="nav-link">Home</a></li>
                     <li><a href="/about" class="nav-link">About</a></li>
                     <li><a href="/events" class="nav-link">Events</a></li>
@@ -31,13 +28,40 @@
                     <li><a href="/gallery" class="nav-link">Gallery</a></li>
                     <li><a href="/members" class="nav-link">Members</a></li>
                     <li><a href="#contact" class="nav-link">Contact</a></li>
-                    <li>
-                        <button id="theme-toggle-main" class="theme-toggle-btn" aria-label="Toggle theme">
-                            <i class="fas fa-moon"></i>
-                        </button>
-                    </li>
+                    <li><a href="/admin" class="nav-link">Admin</a></li>
                 </ul>
+                
+                <div class="nav-actions">
+                    <button id="theme-toggle-main" class="theme-toggle-btn" aria-label="Toggle theme">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                        <span class="hamburger-line"></span>
+                    </button>
+                </div>
             </div>
+        </div>
+        
+        <!-- Mobile Navigation Drawer -->
+        <div class="nav-mobile-drawer" id="navMobileDrawer">
+            <div class="nav-mobile-header">
+                <span class="nav-mobile-title">Menu</span>
+                <button class="nav-close-btn" id="navCloseBtn" aria-label="Close menu">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <ul class="nav-menu-mobile">
+                <li><a href="/" class="nav-link-mobile"><i class="fas fa-home"></i> Home</a></li>
+                <li><a href="/about" class="nav-link-mobile"><i class="fas fa-info-circle"></i> About</a></li>
+                <li><a href="/events" class="nav-link-mobile"><i class="fas fa-calendar-alt"></i> Events</a></li>
+                <li><a href="/attendance/check" class="nav-link-mobile"><i class="fas fa-clipboard-check"></i> Attendance</a></li>
+                <li><a href="/gallery" class="nav-link-mobile"><i class="fas fa-images"></i> Gallery</a></li>
+                <li><a href="/members" class="nav-link-mobile"><i class="fas fa-users"></i> Members</a></li>
+                <li><a href="#contact" class="nav-link-mobile"><i class="fas fa-envelope"></i> Contact</a></li>
+                <li><a href="/admin" class="nav-link-mobile"><i class="fas fa-user-shield"></i> Admin</a></li>
+            </ul>
         </div>
     </nav>
     <div class="nav-overlay" id="navOverlay"></div>
