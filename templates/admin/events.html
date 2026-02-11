@@ -72,6 +72,10 @@
                         {% endif %}
                         {% if event.registration_type == 'internal' %}
                         <span class="ebadge ebadge--reg"><i class="fas fa-clipboard-list"></i></span>
+                        <span class="ebadge {% if event.allow_registration != false %}ebadge--reg-open{% else %}ebadge--reg-closed{% endif %}" id="reg-badge-{{ event.id }}">
+                            <i class="fas fa-{% if event.allow_registration != false %}door-open{% else %}door-closed{% endif %}"></i>
+                            {{ 'Reg Open' if event.allow_registration != false else 'Reg Closed' }}
+                        </span>
                         {% endif %}
                     </div>
                 </div>
@@ -94,6 +98,10 @@
                         <span>{{ 'Show' if event.show_in_events == false else 'Hide' }}</span>
                     </button>
                     {% if event.registration_type == 'internal' %}
+                    <button class="eact {% if event.allow_registration != false %}eact--reg-close{% else %}eact--reg-open{% endif %}" id="reg-btn-{{ event.id }}" onclick="toggleRegistration({{ event.id }})" title="{{ 'Close Registration' if event.allow_registration != false else 'Open Registration' }}">
+                        <i class="fas fa-{% if event.allow_registration != false %}lock{% else %}lock-open{% endif %}"></i>
+                        <span>{{ 'Close Reg' if event.allow_registration != false else 'Open Reg' }}</span>
+                    </button>
                     <a href="{{ url_for('admin_view_registrations', event_id=event.id) }}" class="eact eact--regs" title="View Registrations">
                         <i class="fas fa-users"></i>
                         <span>Regs</span>
@@ -213,6 +221,8 @@ body.admin-dashboard {
 .ebadge--completed { background: rgba(100,116,139,0.85); color: #fff; }
 .ebadge--hidden { background: rgba(245,158,11,0.9); color: #fff; }
 .ebadge--reg { background: rgba(99,102,241,0.85); color: #fff; font-size: 0.65rem; }
+.ebadge--reg-open { background: rgba(16,185,129,0.85); color: #fff; }
+.ebadge--reg-closed { background: rgba(239,68,68,0.85); color: #fff; }
 
 /* Body */
 .ecard__body { padding: 16px 18px; flex: 1; display: flex; flex-direction: column; }
@@ -236,6 +246,10 @@ body.admin-dashboard {
 .eact--regs:hover { box-shadow: 0 4px 12px rgba(6,182,212,0.35); }
 .eact--edit { background: linear-gradient(135deg, #3b82f6, #2563eb); }
 .eact--edit:hover { box-shadow: 0 4px 12px rgba(59,130,246,0.35); }
+.eact--reg-close { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.eact--reg-close:hover { box-shadow: 0 4px 12px rgba(245,158,11,0.35); }
+.eact--reg-open { background: linear-gradient(135deg, #10b981, #059669); }
+.eact--reg-open:hover { box-shadow: 0 4px 12px rgba(16,185,129,0.35); }
 .eact--del { background: linear-gradient(135deg, #ef4444, #dc2626); }
 .eact--del:hover { box-shadow: 0 4px 12px rgba(239,68,68,0.35); }
 
@@ -347,6 +361,30 @@ function toggleVisibility(id){
                     const b=document.createElement('span');b.className='ebadge ebadge--hidden';
                     b.innerHTML='<i class="fas fa-eye-slash"></i> Hidden';badges.appendChild(b);
                 }
+            }
+            showToast(d.message,'success');
+        }else{showToast(d.message||'Failed','error')}
+    }).catch(()=>showToast('Network error','error')).finally(()=>{btn.disabled=false});
+}
+
+// Registration toggle
+function toggleRegistration(id){
+    const btn=document.getElementById('reg-btn-'+id);
+    btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';
+    fetch('/admin/events/'+id+'/toggle-registration',{method:'POST',headers:{'Content-Type':'application/json'}})
+    .then(r=>r.json()).then(d=>{
+        if(d.success){
+            const badge=document.getElementById('reg-badge-'+id);
+            if(d.allow_registration){
+                btn.innerHTML='<i class="fas fa-lock"></i><span>Close Reg</span>';
+                btn.className='eact eact--reg-close';
+                btn.title='Close Registration';
+                if(badge){badge.className='ebadge ebadge--reg-open';badge.innerHTML='<i class="fas fa-door-open"></i> Reg Open';}
+            }else{
+                btn.innerHTML='<i class="fas fa-lock-open"></i><span>Open Reg</span>';
+                btn.className='eact eact--reg-open';
+                btn.title='Open Registration';
+                if(badge){badge.className='ebadge ebadge--reg-closed';badge.innerHTML='<i class="fas fa-door-closed"></i> Reg Closed';}
             }
             showToast(d.message,'success');
         }else{showToast(d.message||'Failed','error')}

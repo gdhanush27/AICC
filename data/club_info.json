@@ -36,12 +36,12 @@
         "MAIL_SERVER": "smtp.gmail.com",
         "MAIL_PORT": 587,
         "MAIL_USE_TLS": true,
-        "MAIL_USERNAME": "filesharepro.help@gmail.com",
-        "MAIL_PASSWORD": "tsva rfza nljn mnva",
-        "MAIL_DEFAULT_SENDER": "filesharepro.help@gmail.com"
+        "MAIL_USERNAME": "kecaicc.help@gmail.com",
+        "MAIL_PASSWORD": "ntci rbhl mdsp tswy ",
+        "MAIL_DEFAULT_SENDER": "kecaicc.help@gmail.com"
     },
     "api_config": {
-        "GROQ_API_KEY": "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",
+        "GROQ_API_KEY": "",
         "GROQ_MODEL": "llama-3.1-8b-instant",
         "RAZORPAY_KEY_ID": "rzp_test_S9K6cEXINpcvhY",
         "RAZORPAY_KEY_SECRET": "AYkLCQKCY4w18n8OUE2dwn5Y"

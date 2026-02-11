@@ -245,10 +245,18 @@
             border: 2px solid #e5e7eb;
             border-radius: 10px;
             transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
         }
         
         .participant-item:hover {
             border-color: #667eea;
+            background: #f9fafb;
+        }
+        
+        .participant-item:active {
+            transform: scale(0.98);
         }
         
         .participant-item.checked {
@@ -259,9 +267,11 @@
         .participant-checkbox {
             width: 22px;
             height: 22px;
+            min-width: 22px;
             margin-right: 15px;
             cursor: pointer;
             accent-color: #22c55e;
+            pointer-events: none;
         }
         
         .participant-info {
@@ -466,14 +476,13 @@
                 
                 {% for participant in registration.participants %}
                 {% set participant_attendance = registration.participant_attendance[loop.index0] if registration.participant_attendance else None %}
-                <div class="participant-item {% if participant_attendance == true %}checked{% endif %}" id="participant-item-{{ loop.index0 }}">
+                <div class="participant-item {% if participant_attendance == true %}checked{% endif %}" id="participant-item-{{ loop.index0 }}" onclick="toggleParticipant({{ loop.index0 }})">
                     <input type="checkbox" 
                            class="participant-checkbox" 
                            id="participant_{{ loop.index0 }}" 
                            name="participant_attendance" 
                            value="{{ loop.index0 }}"
-                           {% if participant_attendance == true %}checked{% endif %}
-                           onchange="updateParticipantStyle({{ loop.index0 }})">
+                           {% if participant_attendance == true %}checked{% endif %}>
                     <div class="participant-info">
                         <div class="participant-name">{{ participant.name }}</div>
                         <div class="participant-details">
@@ -575,6 +584,12 @@
         const totalParticipants = {{ registration.participants|length if registration.participants else 0 }};
         
         // Participant attendance functions
+        function toggleParticipant(index) {
+            const checkbox = document.getElementById('participant_' + index);
+            checkbox.checked = !checkbox.checked;
+            updateParticipantStyle(index);
+        }
+        
         function updateParticipantStyle(index) {
             const checkbox = document.getElementById('participant_' + index);
             const item = document.getElementById('participant-item-' + index);
