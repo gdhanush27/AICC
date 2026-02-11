@@ -804,6 +804,11 @@ def event_register(event_id):
     if not event:
         return render_template('404.html'), 404
     
+    # Block registration for hidden events
+    if not event.get('show_in_events', True):
+        flash('Registration is not available for this event.', 'error')
+        return redirect(url_for('events'))
+    
     # Check if event has internal registration
     if event.get('registration_type') != 'internal':
         flash('This event uses external registration.', 'info')
@@ -1033,6 +1038,10 @@ def api_register_event(event_slug):
             event = next((e for e in events if slugify(e.get('name', '')) == event_slug), None)
         
         if event:
+            # Block registration for hidden events
+            if not event.get('show_in_events', True):
+                return jsonify({'error': 'Registration is not available for this event'}), 400
+            
             # Check registration type
             if event.get('registration_type') not in ['internal']:
                 return jsonify({'error': 'Registration is not enabled for this event'}), 400
